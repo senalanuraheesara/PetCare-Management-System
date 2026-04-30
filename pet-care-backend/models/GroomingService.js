@@ -5,6 +5,8 @@ const groomingServiceSchema = new mongoose.Schema({
   price: { type: Number, required: true },          // e.g. 2500
   duration: { type: String, required: true },       // e.g. "90 mins"
   description: { type: String, required: true },    // what is included
+  beforeImage: { type: String },                    // URL for before photo
+  afterImage: { type: String },                     // URL for after photo
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 

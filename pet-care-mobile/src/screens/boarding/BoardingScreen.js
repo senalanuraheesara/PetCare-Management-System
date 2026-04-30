@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
-  Alert, Modal, ActivityIndicator, TextInput, Platform
+  Alert, Modal, ActivityIndicator, TextInput, Platform, Image
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
@@ -166,7 +166,11 @@ export default function BoardingScreen({ navigation }) {
           {rooms.map(r => (
             <View key={r._id} style={styles.roomCard}>
               <View style={styles.roomTop}>
-                <View style={styles.roomIcon}><Text style={{ fontSize: 26 }}>{roomEmoji(r.name)}</Text></View>
+                {r.image ? (
+                  <Image source={{ uri: r.image }} style={styles.cardImageIcon} />
+                ) : (
+                  <View style={styles.roomIcon}><Text style={{ fontSize: 26 }}>{roomEmoji(r.name)}</Text></View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.roomName}>{r.name}</Text>
                   <View style={styles.pillRow}>
@@ -242,8 +246,13 @@ export default function BoardingScreen({ navigation }) {
             <Text style={styles.modalTitle}>Reserve a Room</Text>
             {selectedRoom && (
               <View style={styles.confirmRoom}>
-                <Text style={styles.confirmRoomName}>{roomEmoji(selectedRoom.name)} {selectedRoom.name}</Text>
-                <Text style={styles.confirmRoomSub}>💰 Rs. {selectedRoom.dailyRate}/night</Text>
+                {selectedRoom.image ? (
+                  <Image source={{ uri: selectedRoom.image }} style={styles.modalRoomImage} />
+                ) : null}
+                <View style={styles.confirmRoomDetails}>
+                  <Text style={styles.confirmRoomName}>{roomEmoji(selectedRoom.name)} {selectedRoom.name}</Text>
+                  <Text style={styles.confirmRoomSub}>💰 Rs. {selectedRoom.dailyRate}/night</Text>
+                </View>
               </View>
             )}
 
@@ -340,6 +349,7 @@ const styles = StyleSheet.create({
   roomCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 18, marginBottom: 16, elevation: 3 },
   roomTop: { flexDirection: 'row', marginBottom: 10 },
   roomIcon: { width: 50, height: 50, borderRadius: 12, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  cardImageIcon: { width: 50, height: 50, borderRadius: 12, marginRight: 12 },
   roomName: { fontSize: 16, fontWeight: 'bold', color: '#222', marginBottom: 6 },
   pillRow: { flexDirection: 'row', gap: 6 },
   pillGreen: { backgroundColor: '#E8F5E9', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
@@ -366,7 +376,9 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '90%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 16 },
-  confirmRoom: { backgroundColor: '#E3F2FD', borderRadius: 12, padding: 14, marginBottom: 16 },
+  confirmRoom: { backgroundColor: '#E3F2FD', borderRadius: 12, padding: 14, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  modalRoomImage: { width: 50, height: 50, borderRadius: 8, marginRight: 12 },
+  confirmRoomDetails: { flex: 1 },
   confirmRoomName: { fontSize: 16, fontWeight: 'bold', color: '#1565C0', marginBottom: 4 },
   confirmRoomSub: { fontSize: 13, color: '#555' },
   fieldLabel: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 6, marginTop: 4 },

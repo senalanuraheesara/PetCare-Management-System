@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
-  TextInput, Alert, Modal, ActivityIndicator
+  TextInput, Alert, Modal, ActivityIndicator, Image
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
 
@@ -29,6 +30,7 @@ export default function AdminBoardingManagementScreen({ navigation }) {
   const [dailyRate, setDailyRate] = useState('');
   const [amenities, setAmenities] = useState('');
   const [capacity, setCapacity] = useState('1');
+  const [imageUri, setImageUri] = useState(null);
 
   useEffect(() => { fetchRooms(); }, []);
 
@@ -43,7 +45,7 @@ export default function AdminBoardingManagementScreen({ navigation }) {
 
   const openAdd = () => {
     setEditingId(null);
-    setName(''); setDailyRate(''); setAmenities(''); setCapacity('1');
+    setName(''); setDailyRate(''); setAmenities(''); setCapacity('1'); setImageUri(null);
     setShowModal(true);
   };
 
@@ -51,20 +53,51 @@ export default function AdminBoardingManagementScreen({ navigation }) {
     setEditingId(r._id);
     setName(r.name); setDailyRate(r.dailyRate.toString());
     setAmenities(r.amenities); setCapacity(r.capacity.toString());
+    setImageUri(r.image || null);
     setShowModal(true);
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
   const handleSave = async () => {
     if (!name.trim() || !dailyRate.trim() || !amenities.trim()) {
       Alert.alert('Error', 'Name, daily rate, and amenities are required'); return;
     }
-    const payload = { name, dailyRate: parseFloat(dailyRate), amenities, capacity: parseInt(capacity) || 1 };
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('dailyRate', dailyRate);
+    formData.append('amenities', amenities);
+    formData.append('capacity', capacity || 1);
+
+    if (imageUri && !imageUri.startsWith('http')) {
+      const filename = imageUri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image`;
+      formData.append('image', { uri: imageUri, name: filename, type });
+    }
+
     try {
+      const config = {
+        headers: {
+          ...authHeader.headers,
+          'Content-Type': 'multipart/form-data',
+        }
+      };
+
       if (editingId) {
-        await api.put(`/boarding/rooms/${editingId}`, payload, authHeader);
+        await api.put(`/boarding/rooms/${editingId}`, formData, config);
         Alert.alert('Success', 'Room type updated');
       } else {
-        await api.post('/boarding/rooms', payload, authHeader);
+        await api.post('/boarding/rooms', formData, config);
         Alert.alert('Success', 'Room type added');
       }
       setShowModal(false); fetchRooms();
@@ -108,9 +141,13 @@ export default function AdminBoardingManagementScreen({ navigation }) {
           )}
           {rooms.map(r => (
             <View key={r._id} style={[styles.card, !r.isActive && { opacity: 0.55 }]}>
-              <View style={styles.cardIconBox}>
-                <Text style={{ fontSize: 26 }}>{roomEmoji(r.name)}</Text>
-              </View>
+              {r.image ? (
+                <Image source={{ uri: r.image }} style={styles.cardImageIcon} />
+              ) : (
+                <View style={styles.cardIconBox}>
+                  <Text style={{ fontSize: 26 }}>{roomEmoji(r.name)}</Text>
+                </View>
+              )}
               <View style={styles.cardBody}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={styles.cardName}>{r.name}</Text>
@@ -160,6 +197,11 @@ export default function AdminBoardingManagementScreen({ navigation }) {
               value={amenities} onChangeText={setAmenities}
               multiline
             />
+            
+            <TouchableOpacity style={styles.imageUploadBtn} onPress={pickImage}>
+              <Text style={styles.imageUploadText}>{imageUri ? 'Change Image' : 'Upload Image'}</Text>
+            </TouchableOpacity>
+            {imageUri && <Image source={{ uri: imageUri }} style={styles.previewImage} />}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -215,4 +257,8 @@ const styles = StyleSheet.create({
   cancelText: { color: '#666', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 14, backgroundColor: '#5EBFA4', borderRadius: 12, alignItems: 'center' },
   saveText: { color: '#FFF', fontWeight: 'bold' },
+  imageUploadBtn: { backgroundColor: '#E3F2FD', padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 12 },
+  imageUploadText: { color: '#1565C0', fontWeight: 'bold' },
+  previewImage: { width: '100%', height: 120, borderRadius: 12, marginBottom: 12 },
+  cardImageIcon: { width: 50, height: 50, borderRadius: 12, marginRight: 12 },
 });

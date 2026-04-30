@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
-  TextInput, Alert, Modal, ActivityIndicator
+  TextInput, Alert, Modal, ActivityIndicator, Image
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
 
@@ -19,6 +20,8 @@ export default function AdminGroomingManagementScreen({ navigation }) {
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
   const [description, setDescription] = useState('');
+  const [beforeImageUri, setBeforeImageUri] = useState(null);
+  const [afterImageUri, setAfterImageUri] = useState(null);
 
   useEffect(() => { fetchServices(); }, []);
 
@@ -37,13 +40,29 @@ export default function AdminGroomingManagementScreen({ navigation }) {
   const openAdd = () => {
     setEditingId(null);
     setName(''); setPrice(''); setDuration(''); setDescription('');
+    setBeforeImageUri(null); setAfterImageUri(null);
     setShowModal(true);
   };
 
   const openEdit = (s) => {
     setEditingId(s._id);
     setName(s.name); setPrice(s.price.toString()); setDuration(s.duration); setDescription(s.description);
+    setBeforeImageUri(s.beforeImage || null);
+    setAfterImageUri(s.afterImage || null);
     setShowModal(true);
+  };
+
+  const pickImage = async (type) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      if (type === 'before') setBeforeImageUri(result.assets[0].uri);
+      if (type === 'after') setAfterImageUri(result.assets[0].uri);
+    }
   };
 
   const handleSave = async () => {
@@ -51,13 +70,38 @@ export default function AdminGroomingManagementScreen({ navigation }) {
       Alert.alert('Error', 'All fields are required');
       return;
     }
-    const payload = { name, price: parseFloat(price), duration, description };
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('price', price);
+    formData.append('duration', duration);
+    formData.append('description', description);
+
+    const appendImage = (uri, fieldName) => {
+      if (uri && !uri.startsWith('http')) {
+        const filename = uri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+        formData.append(fieldName, { uri, name: filename, type });
+      }
+    };
+
+    appendImage(beforeImageUri, 'beforeImage');
+    appendImage(afterImageUri, 'afterImage');
+
     try {
+      const config = {
+        headers: {
+          ...authHeader.headers,
+          'Content-Type': 'multipart/form-data',
+        }
+      };
+
       if (editingId) {
-        await api.put(`/grooming/services/${editingId}`, payload, authHeader);
+        await api.put(`/grooming/services/${editingId}`, formData, config);
         Alert.alert('Success', 'Service updated');
       } else {
-        await api.post('/grooming/services', payload, authHeader);
+        await api.post('/grooming/services', formData, config);
         Alert.alert('Success', 'Service added');
       }
       setShowModal(false);
@@ -136,6 +180,23 @@ export default function AdminGroomingManagementScreen({ navigation }) {
                   </View>
                 </View>
                 <Text style={styles.cardDesc} numberOfLines={2}>{s.description}</Text>
+                
+                {(s.beforeImage || s.afterImage) && (
+                  <View style={styles.thumbnailRow}>
+                    {s.beforeImage && (
+                      <View style={styles.thumbWrap}>
+                        <Text style={styles.thumbLabel}>Before</Text>
+                        <Image source={{ uri: s.beforeImage }} style={styles.thumbImage} />
+                      </View>
+                    )}
+                    {s.afterImage && (
+                      <View style={styles.thumbWrap}>
+                        <Text style={styles.thumbLabel}>After</Text>
+                        <Image source={{ uri: s.afterImage }} style={styles.thumbImage} />
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(s)}>
@@ -172,12 +233,29 @@ export default function AdminGroomingManagementScreen({ navigation }) {
               />
             </View>
             <TextInput
-              style={[styles.input, { minHeight: 90, textAlignVertical: 'top' }]}
+              style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
               placeholder="Description – what's included?"
               value={description}
               onChangeText={setDescription}
               multiline
             />
+
+            <View style={styles.imagePickerRow}>
+              <View style={styles.imagePickerCol}>
+                <Text style={styles.imagePickerLabel}>Before Photo</Text>
+                <TouchableOpacity style={styles.imageUploadBtn} onPress={() => pickImage('before')}>
+                  <Text style={styles.imageUploadText}>{beforeImageUri ? 'Change' : 'Upload'}</Text>
+                </TouchableOpacity>
+                {beforeImageUri && <Image source={{ uri: beforeImageUri }} style={styles.previewImage} />}
+              </View>
+              <View style={styles.imagePickerCol}>
+                <Text style={styles.imagePickerLabel}>After Photo</Text>
+                <TouchableOpacity style={styles.imageUploadBtn} onPress={() => pickImage('after')}>
+                  <Text style={styles.imageUploadText}>{afterImageUri ? 'Change' : 'Upload'}</Text>
+                </TouchableOpacity>
+                {afterImageUri && <Image source={{ uri: afterImageUri }} style={styles.previewImage} />}
+              </View>
+            </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
@@ -258,4 +336,16 @@ const styles = StyleSheet.create({
   cancelText: { color: '#666', fontWeight: 'bold' },
   saveBtn: { flex: 1, padding: 14, backgroundColor: '#5EBFA4', borderRadius: 12, alignItems: 'center' },
   saveText: { color: '#FFF', fontWeight: 'bold' },
+  
+  thumbnailRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  thumbWrap: { alignItems: 'center' },
+  thumbLabel: { fontSize: 10, color: '#888', marginBottom: 2, fontWeight: 'bold' },
+  thumbImage: { width: 50, height: 50, borderRadius: 8 },
+  
+  imagePickerRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  imagePickerCol: { flex: 1 },
+  imagePickerLabel: { fontSize: 12, fontWeight: 'bold', color: '#555', marginBottom: 6 },
+  imageUploadBtn: { backgroundColor: '#E3F2FD', padding: 10, borderRadius: 10, alignItems: 'center', marginBottom: 8 },
+  imageUploadText: { color: '#1565C0', fontWeight: 'bold', fontSize: 12 },
+  previewImage: { width: '100%', height: 80, borderRadius: 10 },
 });

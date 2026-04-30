@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
-  Alert, Modal, ActivityIndicator, TextInput, Platform
+  Alert, Modal, ActivityIndicator, TextInput, Platform, Image
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
@@ -178,6 +178,23 @@ export default function GroomingScreen({ navigation }) {
                 </View>
               </View>
               <Text style={styles.serviceDesc}>{s.description}</Text>
+              
+              {(s.beforeImage || s.afterImage) && (
+                <View style={styles.imagesRow}>
+                  {s.beforeImage && (
+                    <View style={styles.imageWrap}>
+                      <Text style={styles.imageLabel}>Before</Text>
+                      <Image source={{ uri: s.beforeImage }} style={styles.serviceImage} />
+                    </View>
+                  )}
+                  {s.afterImage && (
+                    <View style={styles.imageWrap}>
+                      <Text style={styles.imageLabel}>After</Text>
+                      <Image source={{ uri: s.afterImage }} style={styles.serviceImage} />
+                    </View>
+                  )}
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.bookBtn}
                 onPress={() => openBooking(s)}
@@ -242,8 +259,26 @@ export default function GroomingScreen({ navigation }) {
             <Text style={styles.modalTitle}>Confirm Booking</Text>
             {selectedService && (
               <View style={styles.confirmService}>
-                <Text style={styles.confirmServiceName}>{serviceEmoji(selectedService.name)} {selectedService.name}</Text>
-                <Text style={styles.confirmServiceSub}>💰 Rs. {selectedService.price}  ⏱ {selectedService.duration}</Text>
+                <View style={styles.confirmServiceTop}>
+                  <Text style={styles.confirmServiceName}>{serviceEmoji(selectedService.name)} {selectedService.name}</Text>
+                  <Text style={styles.confirmServiceSub}>💰 Rs. {selectedService.price}  ⏱ {selectedService.duration}</Text>
+                </View>
+                {(selectedService.beforeImage || selectedService.afterImage) && (
+                  <View style={styles.modalImagesRow}>
+                    {selectedService.beforeImage && (
+                      <View style={styles.imageWrap}>
+                        <Text style={styles.imageLabel}>Before</Text>
+                        <Image source={{ uri: selectedService.beforeImage }} style={styles.modalServiceImage} />
+                      </View>
+                    )}
+                    {selectedService.afterImage && (
+                      <View style={styles.imageWrap}>
+                        <Text style={styles.imageLabel}>After</Text>
+                        <Image source={{ uri: selectedService.afterImage }} style={styles.modalServiceImage} />
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
 
@@ -365,6 +400,7 @@ const styles = StyleSheet.create({
   modalBox: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 16 },
   confirmService: { backgroundColor: '#E8F5E9', borderRadius: 12, padding: 14, marginBottom: 16 },
+  confirmServiceTop: { marginBottom: 8 },
   confirmServiceName: { fontSize: 16, fontWeight: 'bold', color: '#2E7D32', marginBottom: 4 },
   confirmServiceSub: { fontSize: 13, color: '#555' },
   fieldLabel: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 6, marginTop: 4 },
@@ -376,4 +412,10 @@ const styles = StyleSheet.create({
   mCancelText: { color: '#666', fontWeight: 'bold' },
   mConfirmBtn: { flex: 1, padding: 14, backgroundColor: '#5EBFA4', borderRadius: 12, alignItems: 'center' },
   mConfirmText: { color: '#FFF', fontWeight: 'bold' },
+  imagesRow: { flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 14 },
+  modalImagesRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  imageWrap: { alignItems: 'center', flex: 1 },
+  imageLabel: { fontSize: 10, color: '#888', marginBottom: 2, fontWeight: 'bold' },
+  serviceImage: { width: '100%', height: 80, borderRadius: 8 },
+  modalServiceImage: { width: '100%', height: 60, borderRadius: 8 },
 });

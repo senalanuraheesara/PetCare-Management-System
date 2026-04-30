@@ -11,7 +11,18 @@ const createService = async (req, res) => {
       res.status(400);
       throw new Error('All fields are required');
     }
-    const service = await GroomingService.create({ name, price, duration, description });
+
+    let beforeImage, afterImage;
+    if (req.files) {
+      if (req.files.beforeImage) {
+        beforeImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.beforeImage[0].filename}`;
+      }
+      if (req.files.afterImage) {
+        afterImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.afterImage[0].filename}`;
+      }
+    }
+
+    const service = await GroomingService.create({ name, price, duration, description, beforeImage, afterImage });
     res.status(201).json(service);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -46,6 +57,16 @@ const updateService = async (req, res) => {
     service.duration = duration ?? service.duration;
     service.description = description ?? service.description;
     if (isActive !== undefined) service.isActive = isActive;
+
+    if (req.files) {
+      if (req.files.beforeImage) {
+        service.beforeImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.beforeImage[0].filename}`;
+      }
+      if (req.files.afterImage) {
+        service.afterImage = `${req.protocol}://${req.get('host')}/uploads/${req.files.afterImage[0].filename}`;
+      }
+    }
+
     await service.save();
     res.status(200).json(service);
   } catch (error) {
