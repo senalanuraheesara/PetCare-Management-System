@@ -1,0 +1,173 @@
+const User = require('../models/User');
+const VetSchedule = require('../models/VetSchedule');
+
+// @desc    Add a vet user
+// @route   POST /api/vets
+// @access  Private/Admin
+const addVet = async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+    
+    // Check if user exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      res.status(400);
+      throw new Error('User already exists');
+    }
+
+    const vet = await User.create({
+      name,
+      email,
+      password,
+      phone,
+      role: 'vet'
+    });
+
+    res.status(201).json({
+      _id: vet._id,
+      name: vet.name,
+      email: vet.email,
+      role: vet.role
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Get all vets
+// @route   GET /api/vets
+// @access  Public or Private
+const getVets = async (req, res) => {
+  try {
+    const vets = await User.find({ role: 'vet' }).select('-password');
+    res.status(200).json(vets);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Create Vet Schedule
+// @route   POST /api/vets/:id/schedule
+// @access  Private/Admin
+const setVetSchedule = async (req, res) => {
+  try {
+    const { date, startTime, endTime, maxAppointments } = req.body;
+    const vetId = req.params.id;
+
+    // Check if a schedule for this vet and date already exists
+    let schedule = await VetSchedule.findOne({ vet: vetId, date });
+    
+    if (schedule) {
+      schedule.startTime = startTime;
+      schedule.endTime = endTime;
+      schedule.maxAppointments = maxAppointments;
+      await schedule.save();
+    } else {
+      schedule = await VetSchedule.create({
+        vet: vetId,
+        date,
+        startTime,
+        endTime,
+        maxAppointments
+      });
+    }
+
+    res.status(201).json(schedule);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Get Vet Schedules for a specific vet
+// @route   GET /api/vets/:id/schedule
+// @access  Public
+const getVetSchedules = async (req, res) => {
+  try {
+    const vetId = req.params.id;
+    const schedules = await VetSchedule.find({ vet: vetId }).sort('date');
+    res.status(200).json(schedules);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Get All Vet Schedules (for admin viewing)
+// @route   GET /api/vets/schedules/all
+// @access  Private/Admin
+const getAllSchedules = async (req, res) => {
+  try {
+    const schedules = await VetSchedule.find().populate('vet', 'name email').sort('date');
+    res.status(200).json(schedules);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+}
+
+// @desc    Update Vet Schedule
+// @route   PUT /api/vets/:id/schedule/:scheduleId
+// @access  Private/Admin
+const updateVetSchedule = async (req, res) => {
+  try {
+    const { date, startTime, endTime, maxAppointments } = req.body;
+    const scheduleId = req.params.scheduleId;
+    
+    let schedule = await VetSchedule.findById(scheduleId);
+    if (!schedule) {
+      res.status(404);
+      throw new Error('Schedule not found');
+    }
+    
+    // Check if new date conflicts with another schedule
+    if (date && date !== schedule.date) {
+      const existing = await VetSchedule.findOne({ vet: req.params.id, date });
+      if (existing) {
+         res.status(400);
+         throw new Error('A schedule already exists for this date');
+      }
+    }
+
+    schedule.date = date || schedule.date;
+    schedule.startTime = startTime || schedule.startTime;
+    schedule.endTime = endTime || schedule.endTime;
+    if (maxAppointments) schedule.maxAppointments = maxAppointments;
+
+    await schedule.save();
+    res.status(200).json(schedule);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Delete Vet Schedule
+// @route   DELETE /api/vets/:id/schedule/:scheduleId
+// @access  Private/Admin
+const deleteVetSchedule = async (req, res) => {
+  try {
+    const scheduleId = req.params.scheduleId;
+    const schedule = await VetSchedule.findById(scheduleId);
+    if (!schedule) {
+       res.status(404);
+       throw new Error('Schedule not found');
+    }
+
+    if (schedule.bookedAppointments > 0) {
+       res.status(400);
+       throw new Error('Cannot delete a schedule that has active appointments');
+    }
+
+    await VetSchedule.findByIdAndDelete(scheduleId);
+    res.status(200).json({ message: 'Schedule deleted' });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  addVet,
+  getVets,
+  setVetSchedule,
+  getVetSchedules,
+  getAllSchedules,
+  updateVetSchedule,
+  deleteVetSchedule
+};
