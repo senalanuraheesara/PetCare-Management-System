@@ -1,19 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+const { protect, admin, vetOrAdmin } = require('../middleware/authMiddleware');
 const {
-    createMedication, getMedications, getAllMedications, updateMedication, deleteMedication,
-    createRecord, getMyRecords, updateRecord, deleteRecord
+    createRecord, getMyRecords, updateRecord, deleteRecord, getAllRecordsAdmin, updateRecordAdmin
 } = require('../controllers/medicationController');
 
-// User: browse active medication catalogue
-router.get('/catalogue', protect, getMedications);
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '..', 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, fileName);
+  },
+});
 
-// Admin: full catalogue management
-router.get('/catalogue/all', protect, admin, getAllMedications);
-router.post('/catalogue', protect, admin, createMedication);
-router.put('/catalogue/:id', protect, admin, updateMedication);
-router.delete('/catalogue/:id', protect, admin, deleteMedication);
+const upload = multer({ storage });
 
 // User: prescription records
 router.route('/records')
@@ -23,5 +28,9 @@ router.route('/records')
 router.route('/records/:id')
     .put(protect, updateRecord)
     .delete(protect, deleteRecord);
+
+// Admin/Vet record management
+router.get('/records/admin/all', protect, admin, getAllRecordsAdmin);
+router.put('/records/admin/:id', protect, vetOrAdmin, upload.single('prescription'), updateRecordAdmin);
 
 module.exports = router;

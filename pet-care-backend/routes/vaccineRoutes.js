@@ -1,30 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+const { protect, admin, vetOrAdmin } = require('../middleware/authMiddleware');
 const {
-  createVaccine,
-  getVaccines,
-  updateVaccine,
-  deleteVaccine,
   addVaccineRecord,
   getMyVaccineRecords,
-  deleteVaccineRecord
+  deleteVaccineRecord,
+  getAllVaccineRecords,
+  updateVaccineRecord
 } = require('../controllers/vaccineController');
 
-// Admin: vaccine catalogue CRUD
-router.route('/')
-  .get(protect, getVaccines)
-  .post(protect, admin, createVaccine);
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '..', 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, fileName);
+  },
+});
 
-router.route('/:id')
-  .put(protect, admin, updateVaccine)
-  .delete(protect, admin, deleteVaccine);
+const upload = multer({ storage });
 
-// User: personal pet vaccine records
-router.route('/records')
-  .get(protect, getMyVaccineRecords)
-  .post(protect, addVaccineRecord);
-
+// Records (User)
+router.get('/records', protect, getMyVaccineRecords);
+router.post('/records', protect, addVaccineRecord);
 router.delete('/records/:id', protect, deleteVaccineRecord);
+
+// Records (Admin/Vet)
+router.get('/records/admin/all', protect, admin, getAllVaccineRecords);
+router.put('/records/admin/:id', protect, vetOrAdmin, upload.single('document'), updateVaccineRecord);
 
 module.exports = router;

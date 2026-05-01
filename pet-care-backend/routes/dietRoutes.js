@@ -1,19 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { protect, admin } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+const { protect, admin, vetOrAdmin } = require('../middleware/authMiddleware');
 const {
-  createCategory, getCategories, getAllCategories, updateCategory, deleteCategory,
-  createFeedingRecord, getMyFeedingRecords, updateFeedingRecord, deleteFeedingRecord
+  createFeedingRecord, getMyFeedingRecords, updateFeedingRecord, deleteFeedingRecord,
+  getAllFeedingRecordsAdmin, updateFeedingRecordAdmin
 } = require('../controllers/dietController');
 
-// User: browse active categories
-router.get('/categories', protect, getCategories);
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '..', 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, fileName);
+  },
+});
 
-// Admin: full category management
-router.get('/categories/all', protect, admin, getAllCategories);
-router.post('/categories', protect, admin, createCategory);
-router.put('/categories/:id', protect, admin, updateCategory);
-router.delete('/categories/:id', protect, admin, deleteCategory);
+const upload = multer({ storage });
 
 // User: feeding records
 router.route('/records')
@@ -23,5 +29,9 @@ router.route('/records')
 router.route('/records/:id')
   .put(protect, updateFeedingRecord)
   .delete(protect, deleteFeedingRecord);
+
+// Admin/Vet record management
+router.get('/records/admin/all', protect, admin, getAllFeedingRecordsAdmin);
+router.put('/records/admin/:id', protect, vetOrAdmin, upload.single('dietChart'), updateFeedingRecordAdmin);
 
 module.exports = router;
