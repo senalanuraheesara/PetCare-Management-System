@@ -31,18 +31,17 @@ export default function BookAppointmentScreen({ navigation }) {
   };
 
   const fetchPets = async () => {
-    // We can just grab from user context if available or fetch from API
-    // Assuming backend /api/auth/me has pets or we fetch them
-    // For now we'll mock or leave basic text since we don't know if pet route is ready.
-    // Let's assume we can fetch user profile:
     try {
-      const { data } = await api.get('/auth/me', {
+      const { data } = await api.get('/pets', {
         headers: { Authorization: `Bearer ${userToken}` }
       });
-      if (data.pets) {
-        // if populated or just IDs? Let's use the first one if we have it, or leave it.
+      setPets(data);
+      if (data.length > 0) {
+        setSelectedPet(data[0]._id);
       }
-    } catch(err){}
+    } catch(err){
+      console.error('Error fetching pets:', err);
+    }
   };
 
   const handleVetSelect = async (vetId) => {
@@ -59,11 +58,10 @@ export default function BookAppointmentScreen({ navigation }) {
   };
 
   const handleBook = async () => {
-    if (!selectedVet || !selectedSchedule || !reason) {
+    if (!selectedVet || !selectedSchedule || !reason || !selectedPet) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
-    const petId = '60d0fe4f5311236168a109ca'; // Dummy pet id for demo
     
     // find schedule details
     const schedInfo = schedules.find(s => s._id === selectedSchedule);
@@ -72,7 +70,7 @@ export default function BookAppointmentScreen({ navigation }) {
 
     try {
       await api.post('/appointments', {
-        pet: petId,
+        pet: selectedPet,
         vet: selectedVet,
         schedule: selectedSchedule,
         date: schedInfo.date,
@@ -104,6 +102,22 @@ export default function BookAppointmentScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.label}>Select Your Pet</Text>
+        <View style={styles.vetGrid}>
+          {pets.map(pet => (
+            <TouchableOpacity 
+              key={pet._id} 
+              style={[styles.vetCard, selectedPet === pet._id && styles.vetCardSelected]}
+              onPress={() => setSelectedPet(pet._id)}
+            >
+              <Text style={[styles.vetName, selectedPet === pet._id && styles.textSelected]}>{pet.name}</Text>
+            </TouchableOpacity>
+          ))}
+          {pets.length === 0 && (
+            <Text style={styles.errorText}>No pets found. Please add a pet in your profile first.</Text>
+          )}
+        </View>
+
         <Text style={styles.label}>Select a Vet</Text>
         <View style={styles.vetGrid}>
           {vets.map(vet => (

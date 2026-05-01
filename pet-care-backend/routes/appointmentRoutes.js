@@ -9,9 +9,12 @@ const {
   updateAppointmentStatus,
   cancelAppointment,
   rescheduleAppointment,
-  uploadInvoice
+  uploadInvoice,
+  addVaccineRecord,
+  addMedicationRecord,
+  addDietRecord
 } = require('../controllers/appointmentController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, admin, vetOrAdmin } = require('../middleware/authMiddleware');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -39,5 +42,10 @@ router.put('/:id/invoice', protect, admin, upload.single('invoice'), uploadInvoi
 
 router.put('/:id/cancel', protect, cancelAppointment);
 router.put('/:id/reschedule', protect, rescheduleAppointment);
+
+// Clinical Records (Vet/Admin)
+router.post('/:id/vaccine', protect, vetOrAdmin, upload.single('document'), addVaccineRecord);
+router.post('/:id/medication', protect, vetOrAdmin, upload.single('prescription'), addMedicationRecord);
+router.post('/:id/diet', protect, vetOrAdmin, upload.single('dietChart'), addDietRecord);
 
 module.exports = router;

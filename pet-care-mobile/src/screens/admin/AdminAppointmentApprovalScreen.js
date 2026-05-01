@@ -38,6 +38,10 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
   };
 
   const handleInvoiceUpload = async (id) => {
+    if (!id) {
+      Alert.alert('Error', 'Appointment ID is missing');
+      return;
+    }
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -46,8 +50,8 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      const fileExt = uri.split('.').pop();
-      const fileName = `${id}-invoice.${fileExt}`;
+      const fileExt = uri.split('.').pop().split('?')[0] || 'jpg';
+      const fileName = `invoice-${Date.now()}.${fileExt}`;
 
       const formData = new FormData();
       formData.append('invoice', {
@@ -56,18 +60,17 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
         type: `image/${fileExt}`
       });
 
+      console.log('Uploading invoice to: /appointments/' + id + '/invoice');
+
       try {
         await api.put(`/appointments/${id}/invoice`, formData, {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-            'Content-Type': 'multipart/form-data',
-          }
+          headers: { Authorization: `Bearer ${userToken}` }
         });
         Alert.alert('Success', 'Invoice uploaded successfully');
         fetchAppointments();
       } catch (error) {
-        console.error('Upload Error:', error);
-        Alert.alert('Error', 'Could not upload invoice');
+        console.error('Upload Error:', JSON.stringify(error.response?.data || error.message));
+        Alert.alert('Error', error.response?.data?.message || `Upload failed (${error.response?.status})`);
       }
     }
   };
@@ -119,19 +122,20 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
               </View>
             )}
 
-            {app.status === 'Completed' && !app.invoiceUrl && (
-              <View style={styles.actionRow}>
-                <TouchableOpacity style={[styles.btn, styles.uploadBtn]} onPress={() => handleInvoiceUpload(app._id)}>
-                  <Text style={styles.btnTextUpload}>Upload Invoice</Text>
-                </TouchableOpacity>
+            {app.status === 'Completed' && (
+              <View style={styles.iconRow}>
+                {!app.invoiceUrl ? (
+                  <TouchableOpacity style={styles.iconBtn} onPress={() => handleInvoiceUpload(app._id)}>
+                    <Text style={styles.iconText}>📄 Upload Invoice</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[styles.iconBtn, {backgroundColor: '#E8F5E9'}]}>
+                    <Text style={[styles.iconText, {color: '#4CAF50'}]}>✅ Invoice Uploaded</Text>
+                  </View>
+                )}
               </View>
             )}
 
-            {app.status === 'Completed' && app.invoiceUrl && (
-              <View style={styles.actionRow}>
-                <Text style={styles.successText}>✅ Invoice Uploaded</Text>
-              </View>
-            )}
           </View>
         ))}
         {appointments.length === 0 && <Text style={styles.emptyText}>No appointments found.</Text>}
@@ -183,12 +187,13 @@ const styles = StyleSheet.create({
   rejectBtn: { backgroundColor: '#FFEBEE' },
   approveBtn: { backgroundColor: '#E8F5E9', marginLeft: 10 },
   completeBtn: { backgroundColor: '#E3F2FD' },
-  uploadBtn: { backgroundColor: '#F3E5F5' },
   btnTextReject: { color: '#F44336', fontWeight: 'bold' },
   btnTextApprove: { color: '#4CAF50', fontWeight: 'bold' },
   btnTextComplete: { color: '#2196F3', fontWeight: 'bold' },
-  btnTextUpload: { color: '#9C27B0', fontWeight: 'bold' },
-  successText: { color: '#4CAF50', fontWeight: 'bold', fontStyle: 'italic' },
+
+  iconRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 12 },
+  iconBtn: { backgroundColor: '#F3E5F5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  iconText: { fontSize: 14, fontWeight: 'bold', color: '#9C27B0' },
 
   emptyText: { textAlign: 'center', color: '#999', marginTop: 40 },
 });

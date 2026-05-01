@@ -1,5 +1,6 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import CustomButton from '../../components/CustomButton';
 import api from '../../services/api';
@@ -19,25 +20,27 @@ export default function HomeScreen({ navigation }) {
   const [pets, setPets] = useState([]);
   const [loadingPets, setLoadingPets] = useState(false);
 
-  useEffect(() => {
-    const fetchPets = async () => {
-      setLoadingPets(true);
-      try {
-        const { data } = await api.get('/pets', {
-          headers: {
-            Authorization: userToken ? `Bearer ${userToken}` : undefined,
-          },
-        });
-        setPets(data);
-      } catch (error) {
-        console.error('Unable to load pets:', error);
-      } finally {
-        setLoadingPets(false);
-      }
-    };
+  const fetchPets = async () => {
+    setLoadingPets(true);
+    try {
+      const { data } = await api.get('/pets', {
+        headers: {
+          Authorization: userToken ? `Bearer ${userToken}` : undefined,
+        },
+      });
+      setPets(data);
+    } catch (error) {
+      console.error('Unable to load pets:', error);
+    } finally {
+      setLoadingPets(false);
+    }
+  };
 
-    fetchPets();
-  }, [userToken]);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPets();
+    }, [userToken])
+  );
 
   return (
     <View style={styles.mainContainer}>

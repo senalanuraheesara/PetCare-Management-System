@@ -1,90 +1,16 @@
-const Vaccine = require('../models/Vaccine');
 const PetVaccineRecord = require('../models/PetVaccineRecord');
 const Pet = require('../models/Pet');
-
-// ─── ADMIN: Vaccine Management ────────────────────────────────────────────────
-
-// @desc    Create a vaccine
-// @route   POST /api/vaccines
-// @access  Private/Admin
-const createVaccine = async (req, res) => {
-  try {
-    const { name, dosage, frequency, description } = req.body;
-    if (!name || !dosage || !frequency) {
-      res.status(400);
-      throw new Error('Name, dosage, and frequency are required');
-    }
-    const vaccine = await Vaccine.create({ name, dosage, frequency, description });
-    res.status(201).json(vaccine);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// @desc    Get all vaccines
-// @route   GET /api/vaccines
-// @access  Private
-const getVaccines = async (req, res) => {
-  try {
-    const vaccines = await Vaccine.find().sort({ name: 1 });
-    res.status(200).json(vaccines);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// @desc    Update a vaccine
-// @route   PUT /api/vaccines/:id
-// @access  Private/Admin
-const updateVaccine = async (req, res) => {
-  try {
-    const vaccine = await Vaccine.findById(req.params.id);
-    if (!vaccine) {
-      res.status(404);
-      throw new Error('Vaccine not found');
-    }
-    const { name, dosage, frequency, description } = req.body;
-    vaccine.name = name || vaccine.name;
-    vaccine.dosage = dosage || vaccine.dosage;
-    vaccine.frequency = frequency || vaccine.frequency;
-    vaccine.description = description !== undefined ? description : vaccine.description;
-    await vaccine.save();
-    res.status(200).json(vaccine);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// @desc    Delete a vaccine
-// @route   DELETE /api/vaccines/:id
-// @access  Private/Admin
-const deleteVaccine = async (req, res) => {
-  try {
-    const vaccine = await Vaccine.findById(req.params.id);
-    if (!vaccine) {
-      res.status(404);
-      throw new Error('Vaccine not found');
-    }
-    await Vaccine.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Vaccine deleted' });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// ─── USER: Pet Vaccine Records ────────────────────────────────────────────────
 
 // @desc    Add a vaccine record for a pet
 // @route   POST /api/vaccines/records
 // @access  Private
 const addVaccineRecord = async (req, res) => {
   try {
-    const { petId, vaccineId, dateAdministered, notes } = req.body;
-    if (!petId || !vaccineId || !dateAdministered) {
+    const { petId, vaccineName, dateAdministered, notes } = req.body;
+    if (!petId || !vaccineName) {
       res.status(400);
-      throw new Error('Pet, vaccine, and date are required');
+      throw new Error('Pet and vaccine name are required');
     }
-    // Verify pet belongs to user
     const pet = await Pet.findById(petId);
     if (!pet || pet.owner.toString() !== req.user._id.toString()) {
       res.status(401);
@@ -93,11 +19,10 @@ const addVaccineRecord = async (req, res) => {
     const record = await PetVaccineRecord.create({
       pet: petId,
       owner: req.user._id,
-      vaccine: vaccineId,
+      vaccineName,
       dateAdministered,
       notes
     });
-    await record.populate('vaccine');
     await record.populate('pet', 'name species');
     res.status(201).json(record);
   } catch (error) {
@@ -105,17 +30,25 @@ const addVaccineRecord = async (req, res) => {
   }
 };
 
-// @desc    Get vaccine records for the logged in user (optionally filtered by pet)
-// @route   GET /api/vaccines/records?petId=xxx
-// @access  Private
+// @desc    Get vaccine records for the logged in user (includes admin-added records)
 const getMyVaccineRecords = async (req, res) => {
   try {
-    const filter = { owner: req.user._id };
-    if (req.query.petId) filter.pet = req.query.petId;
+    // Find all pets owned by this user
+    const myPets = await Pet.find({ owner: req.user._id }).select('_id');
+    const petIds = myPets.map(p => p._id);
+
+    const filter = {
+      $or: [
+        { owner: req.user._id },
+        { pet: { $in: petIds } }
+      ]
+    };
+    if (req.query.petId) filter.$or.push({ pet: req.query.petId });
+    if (req.query.petId) { filter.$and = [{ pet: req.query.petId }]; delete filter.$or; }
+
     const records = await PetVaccineRecord.find(filter)
-      .populate('vaccine')
       .populate('pet', 'name species')
-      .sort({ dateAdministered: -1 });
+      .sort({ createdAt: -1 });
     res.status(200).json(records);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -123,8 +56,6 @@ const getMyVaccineRecords = async (req, res) => {
 };
 
 // @desc    Delete a vaccine record
-// @route   DELETE /api/vaccines/records/:id
-// @access  Private
 const deleteVaccineRecord = async (req, res) => {
   try {
     const record = await PetVaccineRecord.findById(req.params.id);
@@ -132,7 +63,7 @@ const deleteVaccineRecord = async (req, res) => {
       res.status(404);
       throw new Error('Record not found');
     }
-    if (record.owner.toString() !== req.user._id.toString()) {
+    if (record.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       res.status(401);
       throw new Error('Not authorized');
     }
@@ -143,12 +74,49 @@ const deleteVaccineRecord = async (req, res) => {
   }
 };
 
+const getAllVaccineRecords = async (req, res) => {
+  try {
+    const records = await PetVaccineRecord.find({})
+      .populate('pet', 'name species')
+      .populate('owner', 'name email')
+      .sort({ createdAt: -1 });
+    res.status(200).json(records);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+const updateVaccineRecord = async (req, res) => {
+  try {
+    const record = await PetVaccineRecord.findById(req.params.id);
+    if (!record) {
+      res.status(404);
+      throw new Error('Record not found');
+    }
+
+    const { status, dateAdministered, nextDueDate, notes, vaccineName } = req.body;
+    
+    if (status) record.status = status;
+    if (dateAdministered) record.dateAdministered = dateAdministered;
+    if (nextDueDate) record.nextDueDate = nextDueDate;
+    if (notes !== undefined) record.notes = notes;
+    if (vaccineName) record.vaccineName = vaccineName;
+
+    if (req.file) {
+      record.documentUrl = `/uploads/${req.file.filename}`;
+    }
+
+    await record.save();
+    res.status(200).json(record);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
-  createVaccine,
-  getVaccines,
-  updateVaccine,
-  deleteVaccine,
   addVaccineRecord,
   getMyVaccineRecords,
-  deleteVaccineRecord
+  deleteVaccineRecord,
+  getAllVaccineRecords,
+  updateVaccineRecord
 };
