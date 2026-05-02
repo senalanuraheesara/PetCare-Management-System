@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, SafeAreaView,
   TouchableOpacity, ActivityIndicator, Linking
 } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import api, { apiBaseUrl } from '../../services/api';
 
@@ -47,7 +48,7 @@ export default function VaccinationsScreen({ navigation }) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>{'<'}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>💉 Vaccinations</Text>
+            <Text style={styles.headerTitle}><FontAwesome5 name="syringe" size={20} color="#FFF" /> Vaccinations</Text>
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
@@ -61,7 +62,7 @@ export default function VaccinationsScreen({ navigation }) {
             style={[styles.petChip, selectedPet?._id === p._id && styles.petChipActive]}
             onPress={() => setSelectedPet(p)}
           >
-            <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}>🐾 {p.name}</Text>
+            <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}><FontAwesome5 name="paw" size={12} color={selectedPet?._id === p._id ? "#FFF" : "#888"} /> {p.name}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -72,7 +73,7 @@ export default function VaccinationsScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.list}>
           {records.length === 0 && (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>💉</Text>
+              <FontAwesome5 name="syringe" size={48} color="#CCC" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyTitle}>No vaccination records</Text>
               <Text style={styles.emptySub}>Your vet will add vaccination records after your appointment.</Text>
             </View>
@@ -80,20 +81,20 @@ export default function VaccinationsScreen({ navigation }) {
           {records.map(r => (
             <View key={r._id} style={styles.card}>
               <View style={styles.cardTop}>
-                <View style={styles.iconBox}><Text style={{ fontSize: 24 }}>💉</Text></View>
+                <View style={styles.iconBox}><FontAwesome5 name="syringe" size={24} color="#5EBFA4" /></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.cardTitle}>{r.vaccineName || 'Vaccine'}</Text>
-                  <Text style={styles.cardSub}>📅 Given: {formatDate(r.dateAdministered)}</Text>
-                  {r.nextDueDate && <Text style={styles.cardSub}>🔔 Next Due: {formatDate(r.nextDueDate)}</Text>}
+                  <Text style={styles.cardSub}><FontAwesome5 name="calendar-day" size={12} color="#888" /> Given: {formatDate(r.dateAdministered)}</Text>
+                  {r.nextDueDate && <Text style={styles.cardSub}><FontAwesome5 name="bell" size={12} color="#888" /> Next Due: {formatDate(r.nextDueDate)}</Text>}
                 </View>
                 <View style={[styles.badge, r.status === 'Completed' ? styles.badgeDone : styles.badgePending]}>
                   <Text style={styles.badgeText}>{r.status}</Text>
                 </View>
               </View>
-              {r.notes ? <Text style={styles.notes}>📝 {r.notes}</Text> : null}
+              {r.notes ? <Text style={styles.notes}><FontAwesome5 name="sticky-note" size={12} color="#888" /> {r.notes}</Text> : null}
               {r.documentUrl ? (
                 <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.documentUrl}`)}>
-                  <Text style={styles.viewDocText}>📄 View Certificate</Text>
+                  <Text style={styles.viewDocText}><FontAwesome5 name="file-pdf" size={14} color="#4A90E2" /> View Certificate</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -107,7 +108,7 @@ export default function VaccinationsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6F8' },
   header: { backgroundColor: '#5EBFA4', height: 115, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 35 },
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   petBar: { backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE', maxHeight: 60 },
