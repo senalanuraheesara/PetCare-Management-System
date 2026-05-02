@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
 
@@ -36,6 +37,44 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
     }
   };
 
+  const handleInvoiceUpload = async (id) => {
+    if (!id) {
+      Alert.alert('Error', 'Appointment ID is missing');
+      return;
+    }
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      const fileExt = uri.split('.').pop().split('?')[0] || 'jpg';
+      const fileName = `invoice-${Date.now()}.${fileExt}`;
+
+      const formData = new FormData();
+      formData.append('invoice', {
+        uri,
+        name: fileName,
+        type: `image/${fileExt}`
+      });
+
+      console.log('Uploading invoice to: /appointments/' + id + '/invoice');
+
+      try {
+        await api.put(`/appointments/${id}/invoice`, formData, {
+          headers: { Authorization: `Bearer ${userToken}` }
+        });
+        Alert.alert('Success', 'Invoice uploaded successfully');
+        fetchAppointments();
+      } catch (error) {
+        console.error('Upload Error:', JSON.stringify(error.response?.data || error.message));
+        Alert.alert('Error', error.response?.data?.message || `Upload failed (${error.response?.status})`);
+      }
+    }
+  };
+
   return (
     <View style={styles.mainContainer}>
       <View style={styles.greenHeader}>
@@ -56,8 +95,8 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
           <View key={app._id} style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{app.pet?.name || 'Unknown Pet'} - {app.reason}</Text>
-              <View style={[styles.badge, app.status === 'Approved' ? styles.badgeApproved : app.status === 'Pending' ? styles.badgePending : app.status === 'Rejected' ? styles.badgeRejected : null]}>
-                <Text style={[styles.badgeText, app.status === 'Approved' ? styles.badgeTextApproved : app.status === 'Pending' ? styles.badgeTextPending : app.status === 'Rejected' ? styles.badgeTextRejected : null]}>{app.status}</Text>
+              <View style={[styles.badge, app.status === 'Approved' ? styles.badgeApproved : app.status === 'Completed' ? styles.badgeCompleted : app.status === 'Pending' ? styles.badgePending : app.status === 'Rejected' ? styles.badgeRejected : null]}>
+                <Text style={[styles.badgeText, app.status === 'Approved' ? styles.badgeTextApproved : app.status === 'Completed' ? styles.badgeTextCompleted : app.status === 'Pending' ? styles.badgeTextPending : app.status === 'Rejected' ? styles.badgeTextRejected : null]}>{app.status}</Text>
               </View>
             </View>
             <Text style={styles.cardSub}>Owner: {app.owner?.name}</Text>
@@ -74,6 +113,29 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
             )}
+
+            {app.status === 'Approved' && (
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.btn, styles.completeBtn]} onPress={() => handleUpdateStatus(app._id, 'Completed')}>
+                  <Text style={styles.btnTextComplete}>Mark Completed</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {app.status === 'Completed' && (
+              <View style={styles.iconRow}>
+                {!app.invoiceUrl ? (
+                  <TouchableOpacity style={styles.iconBtn} onPress={() => handleInvoiceUpload(app._id)}>
+                    <Text style={styles.iconText}>📄 Upload Invoice</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={[styles.iconBtn, {backgroundColor: '#E8F5E9'}]}>
+                    <Text style={[styles.iconText, {color: '#4CAF50'}]}>✅ Invoice Uploaded</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
           </View>
         ))}
         {appointments.length === 0 && <Text style={styles.emptyText}>No appointments found.</Text>}
@@ -92,7 +154,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 50,
+    paddingHorizontal: 24, paddingTop: 35,
   },
   backButton: { width: 40 },
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
@@ -113,6 +175,8 @@ const styles = StyleSheet.create({
   badgeTextPending: { color: '#FF9800' },
   badgeApproved: { backgroundColor: '#E8F5E9' },
   badgeTextApproved: { color: '#4CAF50' },
+  badgeCompleted: { backgroundColor: '#E3F2FD' },
+  badgeTextCompleted: { color: '#2196F3' },
   badgeRejected: { backgroundColor: '#FFEBEE' },
   badgeTextRejected: { color: '#F44336' },
   
@@ -122,8 +186,14 @@ const styles = StyleSheet.create({
   btn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   rejectBtn: { backgroundColor: '#FFEBEE' },
   approveBtn: { backgroundColor: '#E8F5E9', marginLeft: 10 },
+  completeBtn: { backgroundColor: '#E3F2FD' },
   btnTextReject: { color: '#F44336', fontWeight: 'bold' },
   btnTextApprove: { color: '#4CAF50', fontWeight: 'bold' },
+  btnTextComplete: { color: '#2196F3', fontWeight: 'bold' },
+
+  iconRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 12 },
+  iconBtn: { backgroundColor: '#F3E5F5', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  iconText: { fontSize: 14, fontWeight: 'bold', color: '#9C27B0' },
 
   emptyText: { textAlign: 'center', color: '#999', marginTop: 40 },
 });

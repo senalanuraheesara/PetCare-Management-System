@@ -1,6 +1,9 @@
 const Appointment = require('../models/Appointment');
 const VetSchedule = require('../models/VetSchedule');
 const Pet = require('../models/Pet');
+const PetVaccineRecord = require('../models/PetVaccineRecord');
+const MedicationRecord = require('../models/MedicationRecord');
+const FeedingRecord = require('../models/FeedingRecord');
 
 // @desc    Book a new appointment
 // @route   POST /api/appointments
@@ -195,6 +198,139 @@ const rescheduleAppointment = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+// @desc    Upload an invoice for a completed appointment
+// @route   PUT /api/appointments/:id/invoice
+// @access  Private/Admin
+const uploadInvoice = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const appointment = await Appointment.findById(appointmentId);
+
+    if (!appointment) {
+      res.status(404);
+      throw new Error('Appointment not found');
+    }
+
+    if (req.file) {
+      // The frontend can fetch images from the /uploads directory
+      appointment.invoiceUrl = `/uploads/${req.file.filename}`;
+      const updatedAppointment = await appointment.save();
+      res.status(200).json(updatedAppointment);
+    } else {
+      res.status(400);
+      throw new Error('No image file provided');
+    }
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Add a vaccine record to an appointment
+// @route   POST /api/appointments/:id/vaccine
+// @access  Private/VetOrAdmin
+const addVaccineRecord = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new Error('Appointment not found');
+
+    const { vaccineName, dateAdministered, nextDueDate, notes, status } = req.body;
+    let documentUrl = null;
+    if (req.file) {
+      documentUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const record = await PetVaccineRecord.create({
+      appointment: appointmentId,
+      pet: appointment.pet,
+      owner: appointment.owner || req.user._id,
+      vaccineName,
+      dateAdministered,
+      status: status || (dateAdministered ? 'Completed' : 'Scheduled'),
+      nextDueDate,
+      documentUrl,
+      notes
+    });
+
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Add a medication record to an appointment
+// @route   POST /api/appointments/:id/medication
+// @access  Private/VetOrAdmin
+const addMedicationRecord = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new Error('Appointment not found');
+
+    const { medicationName, dosage, frequency, startDate, endDate, notes } = req.body;
+    let prescriptionFileUrl = null;
+    if (req.file) {
+      prescriptionFileUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const record = await MedicationRecord.create({
+      appointment: appointmentId,
+      pet: appointment.pet,
+      owner: appointment.owner || req.user._id,
+      medicationName,
+      dosage,
+      frequency,
+      startDate,
+      endDate,
+      prescriptionFileUrl,
+      notes
+    });
+
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Add a diet record to an appointment
+// @route   POST /api/appointments/:id/diet
+// @access  Private/VetOrAdmin
+const addDietRecord = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new Error('Appointment not found');
+
+    const { categoryName, schedule, startDate, specialNotes, vetInstructions,
+            allergies, avoidFoods, portionSize, feedingFrequency, waterIntake } = req.body;
+    let parsedSchedule = [];
+    try {
+      parsedSchedule = schedule ? JSON.parse(schedule) : [];
+    } catch (e) {
+      parsedSchedule = [];
+    }
+
+    let dietChartUrl = null;
+    if (req.file) {
+      dietChartUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const record = await FeedingRecord.create({
+      appointment: appointmentId,
+      pet: appointment.pet,
+      owner: appointment.owner || req.user._id,
+      categoryName,
+      schedule: parsedSchedule,
+      startDate,
+      dietChartUrl,
+      specialNotes, vetInstructions, allergies, avoidFoods, portionSize, feedingFrequency, waterIntake
+    });
+
+    res.status(201).json(record);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
 
 module.exports = {
   bookAppointment,
@@ -202,5 +338,9 @@ module.exports = {
   getAllAppointments,
   updateAppointmentStatus,
   cancelAppointment,
-  rescheduleAppointment
+  rescheduleAppointment,
+  uploadInvoice,
+  addVaccineRecord,
+  addMedicationRecord,
+  addDietRecord
 };

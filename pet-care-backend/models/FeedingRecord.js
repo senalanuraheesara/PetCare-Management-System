@@ -1,18 +1,27 @@
 const mongoose = require('mongoose');
 
 const feedingEntrySchema = new mongoose.Schema({
-  time: { type: String, required: true },     // e.g. "08:00 AM"
-  portion: { type: String, required: true },  // e.g. "2 cups"
-  notes: { type: String }                     // e.g. "mixed with wet food"
+  time: { type: String, required: true },
+  portion: { type: String, required: true },
+  notes: { type: String }
 });
 
 const feedingRecordSchema = new mongoose.Schema({
-  owner:    { type: mongoose.Schema.Types.ObjectId, ref: 'User',         required: true },
-  pet:      { type: mongoose.Schema.Types.ObjectId, ref: 'Pet',          required: true },
-  category: { type: mongoose.Schema.Types.ObjectId, ref: 'FoodCategory', required: true },
-  schedule: { type: [feedingEntrySchema], default: [] },  // daily feeding schedule
-  startDate: { type: Date, default: Date.now },
-  isActive: { type: Boolean, default: true }             // currently following this plan
+  owner:            { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  pet:              { type: mongoose.Schema.Types.ObjectId, ref: 'Pet' },
+  categoryName:     { type: String, required: true },
+  appointment:      { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
+  schedule:         { type: [feedingEntrySchema], default: [] },
+  dietChartUrl:     { type: String },
+  startDate:        { type: Date, default: Date.now },
+  isActive:         { type: Boolean, default: true },
+  portionSize:      { type: String },
+  feedingFrequency: { type: String },
+  waterIntake:      { type: String },
+  allergies:        { type: String },
+  avoidFoods:       { type: String },
+  specialNotes:     { type: String },
+  vetInstructions:  { type: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('FeedingRecord', feedingRecordSchema);

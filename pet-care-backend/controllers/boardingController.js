@@ -10,7 +10,12 @@ const createRoom = async (req, res) => {
     if (!name || !dailyRate || !amenities) {
       res.status(400); throw new Error('Name, daily rate, and amenities are required');
     }
-    const room = await BoardingRoom.create({ name, dailyRate, amenities, capacity });
+    
+    const image = req.file
+      ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+      : undefined;
+
+    const room = await BoardingRoom.create({ name, dailyRate, amenities, capacity, image });
     res.status(201).json(room);
   } catch (error) { res.status(400).json({ message: error.message }); }
 };
@@ -33,12 +38,18 @@ const updateRoom = async (req, res) => {
   try {
     const room = await BoardingRoom.findById(req.params.id);
     if (!room) { res.status(404); throw new Error('Room not found'); }
+    
     const { name, dailyRate, amenities, capacity, isActive } = req.body;
     room.name      = name       ?? room.name;
     room.dailyRate = dailyRate  ?? room.dailyRate;
     room.amenities = amenities  ?? room.amenities;
     room.capacity  = capacity   ?? room.capacity;
     if (isActive !== undefined) room.isActive = isActive;
+
+    if (req.file) {
+      room.image = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    }
+
     await room.save();
     res.status(200).json(room);
   } catch (error) { res.status(400).json({ message: error.message }); }

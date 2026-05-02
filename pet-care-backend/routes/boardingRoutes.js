@@ -1,4 +1,6 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
 const {
@@ -6,13 +8,26 @@ const {
   createBooking, getMyBookings, cancelBooking, getAllBookings, updateBookingStatus
 } = require('../controllers/boardingController');
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '..', 'uploads'));
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, fileName);
+  },
+});
+
+const upload = multer({ storage });
+
 // User: browse active rooms
 router.get('/rooms', protect, getRooms);
 
 // Admin: full room management
 router.get('/rooms/all', protect, admin, getAllRooms);
-router.post('/rooms', protect, admin, createRoom);
-router.put('/rooms/:id', protect, admin, updateRoom);
+router.post('/rooms', protect, admin, upload.single('image'), createRoom);
+router.put('/rooms/:id', protect, admin, upload.single('image'), updateRoom);
 router.delete('/rooms/:id', protect, admin, deleteRoom);
 
 // User: bookings

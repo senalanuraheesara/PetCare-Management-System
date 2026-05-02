@@ -38,4 +38,13 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin };
+const vetOrAdmin = (req, res, next) => {
+  if (req.user && (req.user.role === 'vet' || req.user.role === 'admin')) {
+    next();
+  } else {
+    res.status(401);
+    throw new Error('Not authorized, requires vet or admin role');
+  }
+};
+
+module.exports = { protect, admin, vetOrAdmin };

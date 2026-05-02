@@ -17,10 +17,11 @@ import AdminGroomingManagementScreen from '../screens/admin/AdminGroomingManagem
 import AdminBoardingManagementScreen from '../screens/admin/AdminBoardingManagementScreen';
 import AdminDietManagementScreen from '../screens/admin/AdminDietManagementScreen';
 import AdminMedicationManagementScreen from '../screens/admin/AdminMedicationManagementScreen';
-import AdminBoardingBookingApprovalScreen from '../screens/admin/AdminBoardingBookingApprovalScreen';
 import AdminGroomingBookingApprovalScreen from '../screens/admin/AdminGroomingBookingApprovalScreen';
+import AdminBoardingBookingApprovalScreen from '../screens/admin/AdminBoardingBookingApprovalScreen';
 
-import TabNavigator from './TabNavigator';
+
+import TabNavigator from './TabNavigation';
 
 // The 6 Modules
 import AppointmentsScreen from '../screens/appointments/AppointmentsScreen';

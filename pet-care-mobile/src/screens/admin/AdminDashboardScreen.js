@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import api from '../../services/api';
 import { AuthContext } from '../../context/AuthContext';
 
-const AdminCard = ({ title, emoji, onPress }) => (
+const AdminCard = ({ title, iconName, iconType: Icon, onPress, color = '#5EBFA4' }) => (
   <TouchableOpacity style={styles.card} onPress={onPress}>
     <View style={styles.iconContainer}>
-      <Text style={styles.cardEmoji}>{emoji}</Text>
+      <Icon name={iconName} size={36} color={color} />
     </View>
     <Text style={styles.cardTitle}>{title}</Text>
     <Text style={styles.checkText}>+ Add New</Text>
@@ -99,15 +100,15 @@ export default function AdminDashboardScreen({ navigation }) {
         {/* Manage Categories Grid matching HomeScreen grid style */}
         <Text style={styles.manageTitle}>Manage Network</Text>
         <View style={styles.grid}>
-          <AdminCard title="Vets" emoji="🏥" onPress={() => handleAction('Vet')} />
-          <AdminCard title="Appointments" emoji="📅" onPress={() => handleAction('Appointments')} />
-          <AdminCard title="Vaccines" emoji="💉" onPress={() => handleAction('Vaccine')} />
-          <AdminCard title="Medication" emoji="💊" onPress={() => handleAction('Medication')} />
-          <AdminCard title="Diet & Food" emoji="🦴" onPress={() => handleAction('Diet')} />
-          <AdminCard title="Grooming" emoji="✂️" onPress={() => handleAction('Grooming')} />
-          <AdminCard title="Grooming Approvals" emoji="📨" onPress={() => handleAction('GroomingApprovals')} />
-          <AdminCard title="Boarding" emoji="🏡" onPress={() => handleAction('Boarding')} />
-          <AdminCard title="Boarding Approvals" emoji="🛌" onPress={() => handleAction('BoardingApprovals')} />
+          <AdminCard title="Vets" iconName="user-md" iconType={FontAwesome5} onPress={() => handleAction('Vet')} />
+          <AdminCard title="Appointments" iconName="calendar-alt" iconType={FontAwesome5} onPress={() => handleAction('Appointments')} />
+          <AdminCard title="Vaccines" iconName="syringe" iconType={FontAwesome5} onPress={() => handleAction('Vaccine')} />
+          <AdminCard title="Medication" iconName="pills" iconType={FontAwesome5} onPress={() => handleAction('Medication')} />
+          <AdminCard title="Diet & Food" iconName="bone" iconType={FontAwesome5} onPress={() => handleAction('Diet')} />
+          <AdminCard title="Grooming" iconName="cut" iconType={FontAwesome5} onPress={() => handleAction('Grooming')} />
+          <AdminCard title="Grooming Approvals" iconName="clipboard-check" iconType={FontAwesome5} onPress={() => handleAction('GroomingApprovals')} />
+          <AdminCard title="Boarding" iconName="home" iconType={FontAwesome5} onPress={() => handleAction('Boarding')} />
+          <AdminCard title="Boarding Approvals" iconName="bed" iconType={FontAwesome5} onPress={() => handleAction('BoardingApprovals')} />
         </View>
 
       </ScrollView>
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 50, 
+    paddingHorizontal: 24, paddingTop: 35, 
   },
   greeting: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   logoutText: { fontSize: 14, fontWeight: 'bold', color: '#1A1A2E' }, // Contrast text

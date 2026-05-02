@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
-  Alert, Modal, ActivityIndicator, TextInput, Platform
+  Alert, Modal, ActivityIndicator, TextInput, Platform, Image
 } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -99,14 +100,16 @@ export default function GroomingScreen({ navigation }) {
     ]);
   };
 
-  const serviceEmoji = (name = '') => {
-    const n = name.toLowerCase();
-    if (n.includes('bath')) return '🛁';
-    if (n.includes('nail')) return '💅';
-    if (n.includes('full')) return '✨';
-    if (n.includes('hair') || n.includes('trim')) return '✂️';
-    return '🐾';
-  };
+const ServiceIcon = ({ name = '', size = 26, color = '#5EBFA4' }) => {
+  const n = name.toLowerCase();
+  let icon = 'paw';
+  if (n.includes('bath')) icon = 'bath';
+  if (n.includes('nail')) icon = 'hand-holding-heart';
+  if (n.includes('full')) icon = 'sparkles'; // Material might have sparkles, FA has star
+  if (icon === 'sparkles') icon = 'star';
+  if (n.includes('hair') || n.includes('trim')) icon = 'cut';
+  return <FontAwesome5 name={icon} size={size} color={color} />;
+};
 
   const formatDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -167,7 +170,7 @@ export default function GroomingScreen({ navigation }) {
             <View key={s._id} style={styles.serviceCard}>
               <View style={styles.serviceTop}>
                 <View style={styles.serviceIcon}>
-                  <Text style={{ fontSize: 26 }}>{serviceEmoji(s.name)}</Text>
+                  <ServiceIcon name={s.name} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.serviceName}>{s.name}</Text>
@@ -178,6 +181,23 @@ export default function GroomingScreen({ navigation }) {
                 </View>
               </View>
               <Text style={styles.serviceDesc}>{s.description}</Text>
+              
+              {(s.beforeImage || s.afterImage) && (
+                <View style={styles.imagesRow}>
+                  {s.beforeImage && (
+                    <View style={styles.imageWrap}>
+                      <Text style={styles.imageLabel}>Before</Text>
+                      <Image source={{ uri: s.beforeImage }} style={styles.serviceImage} />
+                    </View>
+                  )}
+                  {s.afterImage && (
+                    <View style={styles.imageWrap}>
+                      <Text style={styles.imageLabel}>After</Text>
+                      <Image source={{ uri: s.afterImage }} style={styles.serviceImage} />
+                    </View>
+                  )}
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.bookBtn}
                 onPress={() => openBooking(s)}
@@ -214,7 +234,7 @@ export default function GroomingScreen({ navigation }) {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.bookingService}>{b.service?.name || '—'}</Text>
                     <Text style={styles.bookingPet}>🐾 {b.pet?.name} • {b.pet?.species}</Text>
-                    <Text style={styles.bookingDate}>📅 {formatDate(b.date)}</Text>
+                    <Text style={styles.bookingDate}><FontAwesome5 name="calendar-alt" size={12} color="#888" /> {formatDate(b.date)}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                     <Text style={[styles.statusText, { color: sc.text }]}>{b.status}</Text>
@@ -242,8 +262,26 @@ export default function GroomingScreen({ navigation }) {
             <Text style={styles.modalTitle}>Confirm Booking</Text>
             {selectedService && (
               <View style={styles.confirmService}>
-                <Text style={styles.confirmServiceName}>{serviceEmoji(selectedService.name)} {selectedService.name}</Text>
-                <Text style={styles.confirmServiceSub}>💰 Rs. {selectedService.price}  ⏱ {selectedService.duration}</Text>
+                <View style={styles.confirmServiceTop}>
+                  <Text style={styles.confirmServiceName}><ServiceIcon name={selectedService.name} size={16} color="#2E7D32" /> {selectedService.name}</Text>
+                  <Text style={styles.confirmServiceSub}>💰 Rs. {selectedService.price}  ⏱ {selectedService.duration}</Text>
+                </View>
+                {(selectedService.beforeImage || selectedService.afterImage) && (
+                  <View style={styles.modalImagesRow}>
+                    {selectedService.beforeImage && (
+                      <View style={styles.imageWrap}>
+                        <Text style={styles.imageLabel}>Before</Text>
+                        <Image source={{ uri: selectedService.beforeImage }} style={styles.modalServiceImage} />
+                      </View>
+                    )}
+                    {selectedService.afterImage && (
+                      <View style={styles.imageWrap}>
+                        <Text style={styles.imageLabel}>After</Text>
+                        <Image source={{ uri: selectedService.afterImage }} style={styles.modalServiceImage} />
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
 
@@ -255,14 +293,14 @@ export default function GroomingScreen({ navigation }) {
                   style={[styles.petChip, { marginRight: 8 }, selectedPet?._id === p._id && styles.petChipActive]}
                   onPress={() => setSelectedPet(p)}
                 >
-                  <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}>🐾 {p.name}</Text>
+                  <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}><FontAwesome5 name="paw" size={12} color={selectedPet?._id === p._id ? "#FFF" : "#888"} /> {p.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             <Text style={styles.fieldLabel}>Date</Text>
             <TouchableOpacity style={styles.dateField} onPress={() => setShowDatePicker(true)}>
-              <Text style={styles.dateFieldText}>📅  {bookingDate.toLocaleDateString()}</Text>
+              <Text style={styles.dateFieldText}><FontAwesome5 name="calendar-alt" size={14} color="#888" />  {bookingDate.toLocaleDateString()}</Text>
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -303,7 +341,7 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 50,
+    paddingHorizontal: 24, paddingTop: 35,
   },
   backBtn: { width: 40 },
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
@@ -365,6 +403,7 @@ const styles = StyleSheet.create({
   modalBox: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '85%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 16 },
   confirmService: { backgroundColor: '#E8F5E9', borderRadius: 12, padding: 14, marginBottom: 16 },
+  confirmServiceTop: { marginBottom: 8 },
   confirmServiceName: { fontSize: 16, fontWeight: 'bold', color: '#2E7D32', marginBottom: 4 },
   confirmServiceSub: { fontSize: 13, color: '#555' },
   fieldLabel: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 6, marginTop: 4 },
@@ -376,4 +415,10 @@ const styles = StyleSheet.create({
   mCancelText: { color: '#666', fontWeight: 'bold' },
   mConfirmBtn: { flex: 1, padding: 14, backgroundColor: '#5EBFA4', borderRadius: 12, alignItems: 'center' },
   mConfirmText: { color: '#FFF', fontWeight: 'bold' },
+  imagesRow: { flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 14 },
+  modalImagesRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  imageWrap: { alignItems: 'center', flex: 1 },
+  imageLabel: { fontSize: 10, color: '#888', marginBottom: 2, fontWeight: 'bold' },
+  serviceImage: { width: '100%', height: 80, borderRadius: 8 },
+  modalServiceImage: { width: '100%', height: 60, borderRadius: 8 },
 });

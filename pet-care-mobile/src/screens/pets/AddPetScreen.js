@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F9F9F9' },
   greenHeader: {
     backgroundColor: '#5EBFA4',
-    paddingTop: 40, // For status bar if outside safearea in older devices
+    paddingTop: 25, // For notch and status bar if outside safearea in older devices
     paddingBottom: 20,
   },
   headerContent: {

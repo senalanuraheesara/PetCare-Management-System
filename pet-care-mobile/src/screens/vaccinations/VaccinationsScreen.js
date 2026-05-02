@@ -6,7 +6,7 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 import api, { apiBaseUrl } from '../../services/api';
 
-export default function MedicationsScreen({ navigation }) {
+export default function VaccinationsScreen({ navigation }) {
   const { userToken } = useContext(AuthContext);
   const authHeader = { headers: { Authorization: `Bearer ${userToken}` } };
 
@@ -31,7 +31,7 @@ export default function MedicationsScreen({ navigation }) {
   const fetchRecords = async (petId) => {
     setLoading(true);
     try {
-      const { data } = await api.get(`/medications/records?petId=${petId}`, authHeader);
+      const { data } = await api.get(`/vaccines/records?petId=${petId}`, authHeader);
       setRecords(data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -47,7 +47,7 @@ export default function MedicationsScreen({ navigation }) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>{'<'}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>💊 Medications</Text>
+            <Text style={styles.headerTitle}>💉 Vaccinations</Text>
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
@@ -72,30 +72,28 @@ export default function MedicationsScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.list}>
           {records.length === 0 && (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>💊</Text>
-              <Text style={styles.emptyTitle}>No medication records</Text>
-              <Text style={styles.emptySub}>Your vet will prescribe medications after your appointment.</Text>
+              <Text style={styles.emptyIcon}>💉</Text>
+              <Text style={styles.emptyTitle}>No vaccination records</Text>
+              <Text style={styles.emptySub}>Your vet will add vaccination records after your appointment.</Text>
             </View>
           )}
           {records.map(r => (
             <View key={r._id} style={styles.card}>
               <View style={styles.cardTop}>
-                <View style={styles.iconBox}><Text style={{ fontSize: 24 }}>💊</Text></View>
+                <View style={styles.iconBox}><Text style={{ fontSize: 24 }}>💉</Text></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.cardTitle}>{r.medicationName}</Text>
-                  <Text style={styles.cardSub}>💉 Dosage: {r.dosage}</Text>
-                  <Text style={styles.cardSub}>🔁 Frequency: {r.frequency}</Text>
-                  {r.startDate && <Text style={styles.cardSub}>📅 Started: {formatDate(r.startDate)}</Text>}
-                  {r.endDate && <Text style={styles.cardSub}>🏁 Ends: {formatDate(r.endDate)}</Text>}
+                  <Text style={styles.cardTitle}>{r.vaccineName || 'Vaccine'}</Text>
+                  <Text style={styles.cardSub}>📅 Given: {formatDate(r.dateAdministered)}</Text>
+                  {r.nextDueDate && <Text style={styles.cardSub}>🔔 Next Due: {formatDate(r.nextDueDate)}</Text>}
                 </View>
-                <View style={[styles.badge, r.status === 'Completed' ? styles.badgeDone : styles.badgeActive]}>
-                  <Text style={styles.badgeText}>{r.status || 'Active'}</Text>
+                <View style={[styles.badge, r.status === 'Completed' ? styles.badgeDone : styles.badgePending]}>
+                  <Text style={styles.badgeText}>{r.status}</Text>
                 </View>
               </View>
               {r.notes ? <Text style={styles.notes}>📝 {r.notes}</Text> : null}
-              {r.prescriptionFileUrl ? (
-                <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.prescriptionFileUrl}`)}>
-                  <Text style={styles.viewDocText}>📄 View Prescription</Text>
+              {r.documentUrl ? (
+                <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.documentUrl}`)}>
+                  <Text style={styles.viewDocText}>📄 View Certificate</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -125,14 +123,14 @@ const styles = StyleSheet.create({
   emptySub: { fontSize: 13, color: '#888', textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start' },
-  iconBox: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#F3E5F5', justifyContent: 'center', alignItems: 'center' },
+  iconBox: { width: 46, height: 46, borderRadius: 12, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' },
   cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#222' },
   cardSub: { fontSize: 12, color: '#888', marginTop: 2 },
   badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   badgeDone: { backgroundColor: '#E8F5E9' },
-  badgeActive: { backgroundColor: '#E3F2FD' },
+  badgePending: { backgroundColor: '#FFF3E0' },
   badgeText: { fontSize: 10, fontWeight: 'bold', color: '#555' },
   notes: { fontSize: 12, color: '#666', fontStyle: 'italic', marginTop: 10, borderTopWidth: 1, borderTopColor: '#EEE', paddingTop: 8 },
-  viewDocBtn: { marginTop: 10, backgroundColor: '#F3E5F5', borderRadius: 8, padding: 10, alignItems: 'center' },
-  viewDocText: { color: '#7B1FA2', fontWeight: 'bold', fontSize: 13 },
+  viewDocBtn: { marginTop: 10, backgroundColor: '#E3F2FD', borderRadius: 8, padding: 10, alignItems: 'center' },
+  viewDocText: { color: '#1976D2', fontWeight: 'bold', fontSize: 13 },
 });
