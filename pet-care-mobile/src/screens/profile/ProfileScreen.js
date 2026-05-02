@@ -18,20 +18,13 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Profile</Text>
             <View style={styles.avatarContainer}>
-              <Image style={styles.avatar} source={require('../../context/1.png')} />
+              <Image style={styles.avatar} source={require('../../../assets/1.png')} />
             </View>
           </View>
         </SafeAreaView>
       </View>
 
-      {/* Large Featured Image */}
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?q=80&w=800&auto=format&fit=crop' }} 
-          style={styles.featuredImage}
-          resizeMode="cover"
-        />
-      </View>
+
 
       {/* Overlapping White Info Card */}
       <View style={styles.infoCardWrapper}>
@@ -58,7 +51,7 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#FFF' },
   greenHeader: {
     backgroundColor: '#5EBFA4',
-    paddingTop: 40, 
+    paddingTop: 35, 
     paddingBottom: 10,
     zIndex: 10, // keep header above images if needed
   },
@@ -93,8 +86,8 @@ const styles = StyleSheet.create({
   
   infoCardWrapper: {
     flex: 1,
-    marginTop: -50, // pull the card up to overlap the image
-    backgroundColor: '#FFF', // acts as the bottom background
+    backgroundColor: '#F5F7FA', // light background for empty space
+    paddingTop: 20,
   },
   infoCard: {
     backgroundColor: '#FFF',
@@ -102,7 +95,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 30,
     padding: 30,
     marginHorizontal: 15,
-    marginTop: -40, // overlap even further to create the shadowed gap look in mockup
+    marginTop: 0, 
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,

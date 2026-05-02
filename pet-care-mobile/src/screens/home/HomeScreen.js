@@ -1,15 +1,16 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import CustomButton from '../../components/CustomButton';
 import api from '../../services/api';
 
-const DashboardCard = ({ title, emoji, color, onPress, checkText }) => (
+const DashboardCard = ({ title, iconName, iconType: Icon, onPress, checkText, color = '#5EBFA4' }) => (
   <TouchableOpacity style={styles.card} onPress={onPress}>
     <Text style={styles.cardTitle}>{title}</Text>
     <View style={styles.iconContainer}>
-      <Text style={styles.cardEmoji}>{emoji}</Text>
+      <Icon name={iconName} size={36} color={color} />
     </View>
     <Text style={styles.checkText}>Check {checkText} &gt;</Text>
   </TouchableOpacity>
@@ -97,12 +98,12 @@ export default function HomeScreen({ navigation }) {
 
         {/* Categories Grid */}
         <View style={styles.grid}>
-          <DashboardCard title="Appointment" emoji="🏥" checkText="Appointments" onPress={() => navigation.navigate('Appointments')} />
-          <DashboardCard title="Vaccines" emoji="💉" checkText="Vaccines" onPress={() => navigation.navigate('Vaccinations')} />
-          <DashboardCard title="Medication" emoji="💊" checkText="Medication" onPress={() => navigation.navigate('Medications')} />
-          <DashboardCard title="Diet & Food" emoji="🦴" checkText="Diet & Food" onPress={() => navigation.navigate('Diet')} />
-          <DashboardCard title="Grooming" emoji="✂️" checkText="Grooming" onPress={() => navigation.navigate('Grooming')} />
-          <DashboardCard title="Boarding" emoji="🏡" checkText="Boarding" onPress={() => navigation.navigate('Boarding')} />
+          <DashboardCard title="Appointment" iconName="hospital" iconType={FontAwesome5} checkText="Appointments" onPress={() => navigation.navigate('Appointments')} />
+          <DashboardCard title="Vaccines" iconName="syringe" iconType={FontAwesome5} checkText="Vaccines" onPress={() => navigation.navigate('Vaccinations')} />
+          <DashboardCard title="Medication" iconName="pills" iconType={FontAwesome5} checkText="Medication" onPress={() => navigation.navigate('Medications')} />
+          <DashboardCard title="Diet & Food" iconName="bone" iconType={FontAwesome5} checkText="Diet & Food" onPress={() => navigation.navigate('Diet')} />
+          <DashboardCard title="Grooming" iconName="cut" iconType={FontAwesome5} checkText="Grooming" onPress={() => navigation.navigate('Grooming')} />
+          <DashboardCard title="Boarding" iconName="home" iconType={FontAwesome5} checkText="Boarding" onPress={() => navigation.navigate('Boarding')} />
         </View>
 
         <View style={styles.actionWrapper}>
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 50, // For notch and status bar
+    paddingTop: 35, // For notch and status bar
   },
   greeting: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   avatarContainer: {

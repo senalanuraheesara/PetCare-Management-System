@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity,
   Alert, Modal, ActivityIndicator, TextInput, Platform, Image
 } from 'react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -15,13 +16,14 @@ const STATUS_COLORS = {
   Cancelled:    { bg: '#FFEBEE', text: '#C62828' },
 };
 
-const roomEmoji = (name = '') => {
+const RoomIcon = ({ name = '', size = 26, color = '#5EBFA4' }) => {
   const n = name.toLowerCase();
-  if (n.includes('suite')) return '🏨';
-  if (n.includes('standard')) return '🏠';
-  if (n.includes('kennel')) return '🐕';
-  if (n.includes('play')) return '🎮';
-  return '🏡';
+  let icon = 'home';
+  if (n.includes('suite')) icon = 'star';
+  if (n.includes('standard')) icon = 'home';
+  if (n.includes('kennel')) icon = 'dog';
+  if (n.includes('play')) icon = 'gamepad';
+  return <FontAwesome5 name={icon} size={size} color={color} />;
 };
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -147,7 +149,7 @@ export default function BoardingScreen({ navigation }) {
                 style={[styles.petChip, selectedPet?._id === p._id && styles.petChipActive]}
                 onPress={() => setSelectedPet(p)}
               >
-                <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}>🐾 {p.name}</Text>
+                <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}><FontAwesome5 name="paw" size={12} color={selectedPet?._id === p._id ? "#FFF" : "#888"} /> {p.name}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -159,7 +161,7 @@ export default function BoardingScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {rooms.length === 0 && (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>🏡</Text>
+              <FontAwesome5 name="home" size={48} color="#CCC" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyText}>No room types available yet.</Text>
             </View>
           )}
@@ -169,13 +171,13 @@ export default function BoardingScreen({ navigation }) {
                 {r.image ? (
                   <Image source={{ uri: r.image }} style={styles.cardImageIcon} />
                 ) : (
-                  <View style={styles.roomIcon}><Text style={{ fontSize: 26 }}>{roomEmoji(r.name)}</Text></View>
+                  <View style={styles.roomIcon}><RoomIcon name={r.name} /></View>
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={styles.roomName}>{r.name}</Text>
                   <View style={styles.pillRow}>
-                    <View style={styles.pillGreen}><Text style={styles.pillGreenText}>💰 Rs. {r.dailyRate}/night</Text></View>
-                    <View style={styles.pillBlue}><Text style={styles.pillBlueText}>🛏 Cap: {r.capacity}</Text></View>
+                    <View style={styles.pillGreen}><Text style={styles.pillGreenText}><FontAwesome5 name="money-bill-wave" size={10} color="#2E7D32" /> Rs. {r.dailyRate}/night</Text></View>
+                    <View style={styles.pillBlue}><Text style={styles.pillBlueText}><FontAwesome5 name="bed" size={10} color="#1565C0" /> Cap: {r.capacity}</Text></View>
                   </View>
                 </View>
               </View>
@@ -200,7 +202,7 @@ export default function BoardingScreen({ navigation }) {
           {loading && <ActivityIndicator size="large" color="#5EBFA4" style={{ marginTop: 20 }} />}
           {!loading && bookings.length === 0 && (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyIcon}>📋</Text>
+              <FontAwesome5 name="clipboard-list" size={48} color="#CCC" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyText}>No boarding history yet.</Text>
               <Text style={styles.emptySub}>Switch to "Room Types" to make a reservation.</Text>
             </View>
@@ -211,12 +213,12 @@ export default function BoardingScreen({ navigation }) {
             return (
               <View key={b._id} style={styles.bookingCard}>
                 <View style={styles.bookingTop}>
-                  <View style={styles.bookingIcon}><Text style={{ fontSize: 22 }}>{roomEmoji(b.room?.name)}</Text></View>
+                  <View style={styles.bookingIcon}><RoomIcon name={b.room?.name} size={22} /></View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.bookingRoom}>{b.room?.name || '—'}</Text>
-                    <Text style={styles.bookingPet}>🐾 {b.pet?.name} · {b.pet?.species}</Text>
+                    <Text style={styles.bookingPet}><FontAwesome5 name="paw" size={12} color="#666" /> {b.pet?.name} · {b.pet?.species}</Text>
                     <Text style={styles.bookingDates}>
-                      📅 {formatDate(b.checkIn)}  →  {formatDate(b.checkOut)}
+                      <FontAwesome5 name="calendar-alt" size={12} color="#888" /> {formatDate(b.checkIn)}  →  {formatDate(b.checkOut)}
                     </Text>
                     <Text style={styles.bookingNights}>{bNights} night{bNights !== 1 ? 's' : ''}</Text>
                   </View>
@@ -224,9 +226,9 @@ export default function BoardingScreen({ navigation }) {
                     <Text style={[styles.statusText, { color: sc.text }]}>{b.status}</Text>
                   </View>
                 </View>
-                {b.notes ? <Text style={styles.noteText}>📝 {b.notes}</Text> : null}
+                {b.notes ? <Text style={styles.noteText}><FontAwesome5 name="sticky-note" size={12} color="#666" /> {b.notes}</Text> : null}
                 <View style={styles.bookingFooter}>
-                  <Text style={styles.totalCost}>💰 Total: Rs. {b.totalCost ?? '—'}</Text>
+                  <Text style={styles.totalCost}><FontAwesome5 name="money-check-alt" size={12} color="#2E7D32" /> Total: Rs. {b.totalCost ?? '—'}</Text>
                   {(b.status === 'Pending' || b.status === 'Confirmed') && (
                     <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(b._id)}>
                       <Text style={styles.cancelText}>Cancel</Text>
@@ -250,8 +252,8 @@ export default function BoardingScreen({ navigation }) {
                   <Image source={{ uri: selectedRoom.image }} style={styles.modalRoomImage} />
                 ) : null}
                 <View style={styles.confirmRoomDetails}>
-                  <Text style={styles.confirmRoomName}>{roomEmoji(selectedRoom.name)} {selectedRoom.name}</Text>
-                  <Text style={styles.confirmRoomSub}>💰 Rs. {selectedRoom.dailyRate}/night</Text>
+                  <Text style={styles.confirmRoomName}><RoomIcon name={selectedRoom.name} size={16} color="#2E7D32" /> {selectedRoom.name}</Text>
+                  <Text style={styles.confirmRoomSub}><FontAwesome5 name="money-bill-wave" size={12} color="#888" /> Rs. {selectedRoom.dailyRate}/night</Text>
                 </View>
               </View>
             )}
@@ -264,7 +266,7 @@ export default function BoardingScreen({ navigation }) {
                   style={[styles.petChip, { marginRight: 8 }, selectedPet?._id === p._id && styles.petChipActive]}
                   onPress={() => setSelectedPet(p)}
                 >
-                  <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}>🐾 {p.name}</Text>
+                  <Text style={[styles.petChipText, selectedPet?._id === p._id && styles.petChipTextActive]}><FontAwesome5 name="paw" size={12} color={selectedPet?._id === p._id ? "#FFF" : "#888"} /> {p.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -273,7 +275,7 @@ export default function BoardingScreen({ navigation }) {
               <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.fieldLabel}>Check-In</Text>
                 <TouchableOpacity style={styles.dateField} onPress={() => setShowCheckIn(true)}>
-                  <Text style={styles.dateFieldText}>📅 {checkIn.toLocaleDateString()}</Text>
+                  <Text style={styles.dateFieldText}><FontAwesome5 name="calendar-alt" size={14} color="#888" /> {checkIn.toLocaleDateString()}</Text>
                 </TouchableOpacity>
                 {showCheckIn && (
                   <DateTimePicker value={checkIn} mode="date" display="default" minimumDate={new Date()}
@@ -283,7 +285,7 @@ export default function BoardingScreen({ navigation }) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Check-Out</Text>
                 <TouchableOpacity style={styles.dateField} onPress={() => setShowCheckOut(true)}>
-                  <Text style={styles.dateFieldText}>📅 {checkOut.toLocaleDateString()}</Text>
+                  <Text style={styles.dateFieldText}><FontAwesome5 name="calendar-alt" size={14} color="#888" /> {checkOut.toLocaleDateString()}</Text>
                 </TouchableOpacity>
                 {showCheckOut && (
                   <DateTimePicker value={checkOut} mode="date" display="default" minimumDate={new Date(checkIn.getTime() + 86400000)}
@@ -326,7 +328,7 @@ export default function BoardingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6F8' },
   header: { backgroundColor: '#5EBFA4', height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 50 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 35 },
   backBtn: { width: 40 },
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },

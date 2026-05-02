@@ -220,7 +220,7 @@ export default function AdminBoardingManagementScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F6F8' },
   header: { backgroundColor: '#5EBFA4', height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 50 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 35 },
   backBtn: { width: 40 },
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
   headerTitle: { fontSize: 19, fontWeight: 'bold', color: '#FFF' },

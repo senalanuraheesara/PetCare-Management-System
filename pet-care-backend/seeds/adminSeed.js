@@ -2,7 +2,8 @@ const User = require('../models/User');
 
 const seedAdminUser = async () => {
   try {
-    const adminEmail = 'admin@petcare.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@petcare.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const existingAdmin = await User.findOne({ email: adminEmail });
 
     if (existingAdmin) {
@@ -11,9 +12,9 @@ const seedAdminUser = async () => {
     }
 
     const adminUser = new User({
-      name: 'Admin',
+      name: 'System Admin',
       email: adminEmail,
-      password: 'admin123',
+      password: adminPassword,
       role: 'admin'
     });
 
