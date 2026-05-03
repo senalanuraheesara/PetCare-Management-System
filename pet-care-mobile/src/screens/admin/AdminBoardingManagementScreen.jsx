@@ -39,7 +39,7 @@ export default function AdminBoardingManagementScreen({ navigation }) {
     try {
       const { data } = await api.get('/boarding/rooms/all', authHeader);
       setRooms(data);
-    } catch (e) { Alert.alert('Error', 'Could not load rooms'); }
+    } catch (e) { Alert.alert('Error', 'Could not load cage types'); }
     finally { setLoading(false); }
   };
 
@@ -95,17 +95,17 @@ export default function AdminBoardingManagementScreen({ navigation }) {
 
       if (editingId) {
         await api.put(`/boarding/rooms/${editingId}`, formData, config);
-        Alert.alert('Success', 'Room type updated');
+        Alert.alert('Success', 'Cage type updated');
       } else {
         await api.post('/boarding/rooms', formData, config);
-        Alert.alert('Success', 'Room type added');
+        Alert.alert('Success', 'Cage type added');
       }
       setShowModal(false); fetchRooms();
     } catch (e) { Alert.alert('Error', e.response?.data?.message || 'Could not save'); }
   };
 
   const handleDelete = (id) => {
-    Alert.alert('Delete Room', 'Remove this room type?', [
+    Alert.alert('Delete cage type', 'Remove this cage type?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try { await api.delete(`/boarding/rooms/${id}`, authHeader); fetchRooms(); }
@@ -135,8 +135,8 @@ export default function AdminBoardingManagementScreen({ navigation }) {
           {rooms.length === 0 && (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyIcon}>🏡</Text>
-              <Text style={styles.emptyText}>No room types yet.</Text>
-              <Text style={styles.emptySub}>Tap "+ Add" to create the first room type.</Text>
+              <Text style={styles.emptyText}>No cage types yet.</Text>
+              <Text style={styles.emptySub}>Tap &quot;+ Add&quot; to create the first cage type.</Text>
             </View>
           )}
           {rooms.map(r => (
@@ -175,8 +175,8 @@ export default function AdminBoardingManagementScreen({ navigation }) {
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.overlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Room Type' : 'New Room Type'}</Text>
-            <TextInput style={styles.input} placeholder="Room Name (e.g. Suite, Standard Kennel)" value={name} onChangeText={setName} />
+            <Text style={styles.modalTitle}>{editingId ? 'Edit Cage Type' : 'New Cage Type'}</Text>
+            <TextInput style={styles.input} placeholder="Cage name" value={name} onChangeText={setName} />
             <View style={styles.row}>
               <TextInput
                 style={[styles.input, { flex: 1, marginRight: 8 }]}
@@ -193,7 +193,7 @@ export default function AdminBoardingManagementScreen({ navigation }) {
             </View>
             <TextInput
               style={[styles.input, { minHeight: 90, textAlignVertical: 'top' }]}
-              placeholder={"Amenities & Description\ne.g. Includes 2 walks, AC room, cozy bedding"}
+              placeholder="Amenities & Description"
               value={amenities} onChangeText={setAmenities}
               multiline
             />

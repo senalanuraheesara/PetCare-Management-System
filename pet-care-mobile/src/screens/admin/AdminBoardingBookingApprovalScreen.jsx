@@ -1,40 +1,79 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useCallback, useContext } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, RefreshControl, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../services/api';
 
+function nightRangeCoveringToday() {
+  const checkIn = new Date();
+  checkIn.setHours(0, 0, 0, 0);
+  const checkOut = new Date(checkIn.getTime() + 86400000);
+  return { checkIn, checkOut };
+}
+
 export default function AdminBoardingBookingApprovalScreen({ navigation }) {
   const { userToken } = useContext(AuthContext);
+  const authHeader = { headers: { Authorization: `Bearer ${userToken}` } };
+
   const [bookings, setBookings] = useState([]);
+  const [todayRooms, setTodayRooms] = useState([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
-      const { data } = await api.get('/boarding/bookings/all', {
-        headers: { Authorization: `Bearer ${userToken}` }
-      });
+      const { data } = await api.get('/boarding/bookings/all', authHeader);
       setBookings(data);
     } catch (error) {
       console.error('Error fetching boarding bookings:', error);
       Alert.alert('Error', 'Could not load boarding bookings.');
     }
+  }, [userToken]);
+
+  const fetchTodayAvailability = useCallback(async () => {
+    setAvailabilityLoading(true);
+    try {
+      const { checkIn, checkOut } = nightRangeCoveringToday();
+      const q = `?checkIn=${encodeURIComponent(checkIn.toISOString())}&checkOut=${encodeURIComponent(checkOut.toISOString())}&includeFull=true`;
+      const { data } = await api.get(`/boarding/rooms${q}`, authHeader);
+      setTodayRooms(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching today boarding availability:', error);
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  }, [userToken]);
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([fetchBookings(), fetchTodayAvailability()]);
+  }, [fetchBookings, fetchTodayAvailability]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAll();
+    setRefreshing(false);
   };
 
   const handleUpdateStatus = async (id, status) => {
     try {
-      await api.put(`/boarding/bookings/${id}/status`, { status }, {
-        headers: { Authorization: `Bearer ${userToken}` }
-      });
+      await api.put(`/boarding/bookings/${id}/status`, { status }, authHeader);
       Alert.alert('Success', `Booking ${status}`);
-      fetchBookings();
+      loadAll();
     } catch (error) {
       console.error('Error updating booking status:', error);
       Alert.alert('Error', 'Could not update booking status.');
     }
   };
+
+  const todayDisplay = nightRangeCoveringToday().checkIn.toLocaleDateString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+  });
 
   const getBadgeStyle = (status) => {
     if (status === 'Confirmed') return { badge: styles.badgeConfirmed, text: styles.badgeTextConfirmed };
@@ -59,7 +98,39 @@ export default function AdminBoardingBookingApprovalScreen({ navigation }) {
         </SafeAreaView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5EBFA4']} tintColor="#5EBFA4" />}
+      >
+        <View style={styles.availabilityCard}>
+          <Text style={styles.availabilityTitle}>Cage spots left today</Text>
+          <Text style={styles.availabilityDate}>{todayDisplay}</Text>
+          <Text style={styles.availabilityHint}>
+            Counts stays that overlap this night (Pending, Confirmed, Checked In). Pull down to refresh.
+          </Text>
+          {availabilityLoading ? (
+            <ActivityIndicator style={{ alignSelf: 'flex-start', marginVertical: 8 }} color="#5EBFA4" />
+          ) : todayRooms.length === 0 ? (
+            <Text style={styles.availabilityRowMuted}>No active cage types — add types under Boarding management.</Text>
+          ) : (
+            todayRooms.map((r) => {
+              const cap = Number(r.capacity) >= 1 ? Number(r.capacity) : 1;
+              const left = typeof r.availableSpots === 'number' ? r.availableSpots : cap;
+              return (
+                <Text key={r._id} style={styles.availabilityRow}>
+                  {r.name}: <Text style={left === 0 ? styles.availabilityZero : styles.availabilityStrong}>{left}</Text> free of {cap}
+                </Text>
+              );
+            })
+          )}
+          {!availabilityLoading && todayRooms.length > 0 ? (
+            <Text style={styles.availabilityTotal}>
+              Total free spots: <Text style={styles.availabilityStrong}>{todayRooms.reduce((s, r) => s + (typeof r.availableSpots === 'number' ? r.availableSpots : (Number(r.capacity) >= 1 ? Number(r.capacity) : 1)), 0)}</Text>
+            </Text>
+          ) : null}
+        </View>
+
         <Text style={styles.sectionTitle}>Pending Boarding Requests</Text>
         {bookings.map((booking) => {
           const statusStyles = getBadgeStyle(booking.status);
@@ -113,6 +184,20 @@ const styles = StyleSheet.create({
   backArrow: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
   greeting: { fontSize: 20, fontWeight: 'bold', color: '#FFF' },
   container: { padding: 20 },
+  availabilityCard: {
+    backgroundColor: '#FFF', padding: 16, borderRadius: 16, marginBottom: 20,
+    borderLeftWidth: 4, borderLeftColor: '#5EBFA4',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+  },
+  availabilityTitle: { fontSize: 16, fontWeight: 'bold', color: '#222' },
+  availabilityDate: { fontSize: 14, color: '#5EBFA4', fontWeight: '600', marginTop: 4 },
+  availabilityHint: { fontSize: 12, color: '#888', marginTop: 8, marginBottom: 10, lineHeight: 17 },
+  availabilityRow: { fontSize: 14, color: '#444', marginBottom: 6 },
+  availabilityRowMuted: { fontSize: 14, color: '#999', fontStyle: 'italic' },
+  availabilityStrong: { fontWeight: 'bold', color: '#2E7D32' },
+  availabilityZero: { fontWeight: 'bold', color: '#C62828' },
+  availabilityTotal: { fontSize: 14, color: '#555', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEE' },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 16 },
   card: {
     backgroundColor: '#FFF', padding: 20, borderRadius: 16, marginBottom: 16,
