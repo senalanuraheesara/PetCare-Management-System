@@ -1,0 +1,14 @@
+# Local MongoDB for development — run from this folder:
+#   docker compose up -d
+# Then start the API: npm run dev
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - petcare_mongo_data:/data/db
+
+volumes:
+  petcare_mongo_data:

@@ -7,7 +7,7 @@ const seedAdminUser = async () => {
 
     if (!adminEmail || !adminPassword) {
       console.warn(
-        'Skipping admin seed: set ADMIN_EMAIL and ADMIN_PASSWORD in .env (see .env.example)'
+        'Skipping admin seed: set ADMIN_EMAIL and ADMIN_PASSWORD in pet-care-backend/.env'
       );
       return;
     }
