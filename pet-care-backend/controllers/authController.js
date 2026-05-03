@@ -295,6 +295,51 @@ const getMe = async (req, res) => {
   res.status(200).json(req.user);
 };
 
+// @desc    Reset password with OTP
+// @route   POST /api/auth/reset-password
+// @access  Public
+const resetPassword = async (req, res) => {
+  console.log('--- PASSWORD RESET ATTEMPT ---', req.body.email);
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      res.status(400);
+      throw new Error('Please provide email, OTP, and new password');
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+    
+    // Verify OTP
+    const validOtpRecord = await OTP.findOne({ email: emailNorm, otp });
+    if (!validOtpRecord) {
+      res.status(400);
+      throw new Error('Invalid or expired OTP');
+    }
+
+    const user = await findUserByEmail(emailNorm);
+    if (!user) {
+      res.status(404);
+      throw new Error('User not found');
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    // Delete OTP
+    await OTP.deleteMany({ email: emailNorm });
+
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    const statusCode = res.statusCode === 200 ? 400 : res.statusCode;
+    res.status(statusCode).json({ 
+      message: error.message || 'Server error during password reset' 
+    });
+  }
+};
+
 module.exports = {
   sendOTP,
   registerUser,
@@ -302,4 +347,5 @@ module.exports = {
   loginWithOTP,
   googleLogin,
   getMe,
+  resetPassword,
 };

@@ -16,7 +16,6 @@ export default function AdminVetManagementScreen({ navigation }) {
   // Form states for Add Vet
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
 
   // Form states for Schedule
@@ -78,7 +77,7 @@ export default function AdminVetManagementScreen({ navigation }) {
   };
 
   const handleAddVet = async () => {
-    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
+    if (!name.trim() || !email.trim() || !phone.trim()) {
       Alert.alert('Validation Error', 'Please fill in all required fields.');
       return;
     }
@@ -96,13 +95,13 @@ export default function AdminVetManagementScreen({ navigation }) {
 
     try {
       await api.post('/vets', {
-        name, email, password, phone, role: 'vet'
+        name, email, phone, role: 'vet'
       }, {
         headers: { Authorization: `Bearer ${userToken}` }
       });
       Alert.alert('Success', 'Vet added successfully');
       setShowAddVet(false);
-      setName(''); setEmail(''); setPassword(''); setPhone('');
+      setName(''); setEmail(''); setPhone('');
       fetchVets();
     } catch (error) {
       console.error(error);
@@ -206,7 +205,6 @@ export default function AdminVetManagementScreen({ navigation }) {
             <Text style={styles.modalTitle}>Add New Vet</Text>
             <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
             <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-            <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
 
             <TextInput style={styles.input} placeholder="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
             

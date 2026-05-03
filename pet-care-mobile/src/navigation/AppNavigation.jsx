@@ -7,6 +7,7 @@ import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import OtpScreen from '../screens/auth/OtpScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // Admin Flow
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
@@ -48,6 +49,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="OtpVerification" component={OtpScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         ) : userRole === 'admin' ? (
           // Admin Authenticated Flow

@@ -6,11 +6,11 @@ const VetSchedule = require('../models/VetSchedule');
 // @access  Private/Admin
 const addVet = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, phone } = req.body;
 
-    if (!name || !email || !password || !phone) {
+    if (!name || !email || !phone) {
       res.status(400);
-      throw new Error('Please provide name, email, password, and phone');
+      throw new Error('Please provide name, email, and phone');
     }
 
     if (!email.includes('@')) {
@@ -33,7 +33,6 @@ const addVet = async (req, res) => {
     const vet = await User.create({
       name,
       email,
-      password,
       phone,
       role: 'vet'
     });
