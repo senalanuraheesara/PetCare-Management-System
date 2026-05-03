@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView,
-  TouchableOpacity, ActivityIndicator, Linking
+  TouchableOpacity, ActivityIndicator, Linking, RefreshControl
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ export default function VaccinationsScreen({ navigation }) {
   const [records, setRecords] = useState([]);
   const [selectedPet, setSelectedPet] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const baseFileUrl = getBackendOrigin();
 
@@ -25,18 +26,24 @@ export default function VaccinationsScreen({ navigation }) {
     try {
       const { data } = await api.get('/pets', authHeader);
       setPets(data);
-      if (data.length > 0) setSelectedPet(data[0]);
+      if (data.length > 0 && !selectedPet) setSelectedPet(data[0]);
     } catch (e) { console.error(e); }
   };
 
   const fetchRecords = async (petId) => {
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
       const { data } = await api.get(`/vaccines/records?petId=${petId}`, authHeader);
       setRecords(data);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPets();
+    if (selectedPet) fetchRecords(selectedPet._id);
+  }, [selectedPet]);
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -54,7 +61,6 @@ export default function VaccinationsScreen({ navigation }) {
         </SafeAreaView>
       </View>
 
-      {/* Pet Selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petBar} contentContainerStyle={styles.petBarContent}>
         {pets.map(p => (
           <TouchableOpacity
@@ -70,7 +76,10 @@ export default function VaccinationsScreen({ navigation }) {
       {loading ? (
         <ActivityIndicator size="large" color="#5EBFA4" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView 
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5EBFA4']} />}
+        >
           {records.length === 0 && (
             <View style={styles.emptyCard}>
               <FontAwesome5 name="syringe" size={48} color="#CCC" style={{ marginBottom: 10 }} />
@@ -93,18 +102,7 @@ export default function VaccinationsScreen({ navigation }) {
               </View>
               {r.notes ? <Text style={styles.notes}><FontAwesome5 name="sticky-note" size={12} color="#888" /> {r.notes}</Text> : null}
               {r.documentUrl ? (
-                <TouchableOpacity 
-                  style={styles.viewDocBtn} 
-                  onPress={() => {
-                    if (r.documentUrl.startsWith('data:')) {
-                      // For simplicity, we can show an alert or you can implement a modal viewer
-                      // For now, let's assume it's viewable via Linking or handled by the system
-                      Linking.openURL(r.documentUrl);
-                    } else {
-                      Linking.openURL(`${baseFileUrl}${r.documentUrl}`);
-                    }
-                  }}
-                >
+                <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.documentUrl}`)}>
                   <Text style={styles.viewDocText}><FontAwesome5 name="file-pdf" size={14} color="#4A90E2" /> View Certificate</Text>
                 </TouchableOpacity>
               ) : null}
@@ -130,7 +128,6 @@ const styles = StyleSheet.create({
   petChipTextActive: { color: '#FFF' },
   list: { padding: 20, paddingBottom: 60 },
   emptyCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 30, alignItems: 'center', marginTop: 20, elevation: 2 },
-  emptyIcon: { fontSize: 48, marginBottom: 10 },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   emptySub: { fontSize: 13, color: '#888', textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },

@@ -78,6 +78,22 @@ export default function AdminVetManagementScreen({ navigation }) {
   };
 
   const handleAddVet = async () => {
+    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
+      Alert.alert('Validation Error', 'Please fill in all required fields.');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      Alert.alert('Validation Error', 'Please enter a valid email address containing @.');
+      return;
+    }
+
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      Alert.alert('Validation Error', 'Phone number must be exactly 10 digits.');
+      return;
+    }
+
     try {
       await api.post('/vets', {
         name, email, password, phone, role: 'vet'
@@ -191,6 +207,7 @@ export default function AdminVetManagementScreen({ navigation }) {
             <TextInput style={styles.input} placeholder="Name" value={name} onChangeText={setName} />
             <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
             <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+
             <TextInput style={styles.input} placeholder="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
             
             <View style={styles.modalActions}>

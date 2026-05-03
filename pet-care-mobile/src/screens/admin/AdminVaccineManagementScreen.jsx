@@ -122,6 +122,26 @@ export default function AdminVaccineManagementScreen({ navigation }) {
     ]);
   };
 
+  const quickComplete = (record) => {
+    if (record.status === 'Completed') {
+      openEditRecord(record);
+      return;
+    }
+    
+    setEditingRecordId(record._id);
+    setSelectedAppId(record.appointment?._id || record.appointment);
+    setVaccineName(record.vaccineName);
+    setRecordStatus('Completed');
+    setNotes(record.notes || '');
+    setDocumentUri(null);
+    setShowRecordModal(true);
+    
+    // Automatically trigger image picker after a short delay to let modal animate
+    setTimeout(() => {
+      pickImage();
+    }, 500);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -166,9 +186,12 @@ export default function AdminVaccineManagementScreen({ navigation }) {
                       {record.status === 'Completed' ? `Administered: ${new Date(record.dateAdministered).toLocaleDateString()}` : 'Status: Scheduled'}
                     </Text>
                   </View>
-                  <View style={[styles.statusBadge, record.status === 'Completed' ? styles.statusCompleted : styles.statusScheduled]}>
+                  <TouchableOpacity 
+                    onPress={() => quickComplete(record)}
+                    style={[styles.statusBadge, record.status === 'Completed' ? styles.statusCompleted : styles.statusScheduled]}
+                  >
                     <Text style={styles.statusText}>{record.status}</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.recordActions}>
                   <TouchableOpacity onPress={() => openEditRecord(record)}><Text style={styles.editText}>Edit</Text></TouchableOpacity>

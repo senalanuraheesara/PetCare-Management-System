@@ -10,8 +10,15 @@ const createFeedingRecord = async (req, res) => {
       res.status(400); throw new Error('Pet and category name are required');
     }
     const pet = await Pet.findById(petId);
-    if (!pet || pet.owner.toString() !== req.user._id.toString()) {
-      res.status(401); throw new Error('Not authorized or pet not found');
+    if (!pet) {
+      res.status(404); throw new Error('Pet not found');
+    }
+
+    const isOwner = pet.owner.toString() === req.user._id.toString();
+    const isStaff = ['admin', 'vet'].includes(req.user.role);
+
+    if (!isOwner && !isStaff) {
+      res.status(401); throw new Error('Not authorized to add records for this pet');
     }
     let parsedSchedule;
     try {
@@ -21,7 +28,7 @@ const createFeedingRecord = async (req, res) => {
     }
 
     const record = await FeedingRecord.create({
-      owner: req.user._id, pet: petId, categoryName,
+      owner: pet.owner, pet: petId, categoryName,
       schedule: parsedSchedule, startDate: startDate || new Date(),
       specialNotes, vetInstructions, allergies, avoidFoods, portionSize, feedingFrequency, waterIntake
     });
@@ -35,11 +42,17 @@ const getMyFeedingRecords = async (req, res) => {
     const myPets = await Pet.find({ owner: req.user._id }).select('_id');
     const petIds = myPets.map(p => p._id);
 
-    let filter;
+    // BROAD FILTER: Show records linked to user's pets OR where user is the explicit owner
+    const filter = {
+      $or: [
+        { pet: { $in: petIds } },
+        { owner: req.user._id }
+      ]
+    };
+
     if (req.query.petId) {
-      filter = { pet: req.query.petId };
-    } else {
-      filter = { $or: [{ owner: req.user._id }, { pet: { $in: petIds } }] };
+      filter.pet = req.query.petId;
+      delete filter.$or;
     }
 
     const records = await FeedingRecord.find(filter)

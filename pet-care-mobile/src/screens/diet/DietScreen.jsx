@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, SafeAreaView,
-  TouchableOpacity, ActivityIndicator, Linking
+  TouchableOpacity, ActivityIndicator, Linking, RefreshControl
 } from 'react-native';
-import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import api, { getBackendOrigin } from '../../services/api';
 
 const MEAL_ICONS = {
-  Morning: { icon: 'sun', type: FontAwesome5, color: '#FFA000' },
-  Afternoon: { icon: 'cloud-sun', type: FontAwesome5, color: '#FFB300' },
-  Evening: { icon: 'moon', type: FontAwesome5, color: '#3949AB' }
+  Morning: '☀️',
+  Afternoon: '⛅',
+  Evening: '🌙'
 };
 
 export default function DietScreen({ navigation }) {
@@ -21,6 +21,7 @@ export default function DietScreen({ navigation }) {
   const [records, setRecords] = useState([]);
   const [selectedPet, setSelectedPet] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const baseFileUrl = getBackendOrigin();
 
@@ -31,18 +32,24 @@ export default function DietScreen({ navigation }) {
     try {
       const { data } = await api.get('/pets', authHeader);
       setPets(data);
-      if (data.length > 0) setSelectedPet(data[0]);
+      if (data.length > 0 && !selectedPet) setSelectedPet(data[0]);
     } catch (e) { console.error(e); }
   };
 
   const fetchRecords = async (petId) => {
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
       const { data } = await api.get(`/diet/records?petId=${petId}`, authHeader);
       setRecords(data);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { setLoading(false); setRefreshing(false); }
   };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchPets();
+    if (selectedPet) fetchRecords(selectedPet._id);
+  }, [selectedPet]);
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -54,13 +61,12 @@ export default function DietScreen({ navigation }) {
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Text style={styles.backArrow}>{'<'}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Diet & Nutrition</Text>
+            <Text style={styles.headerTitle}><FontAwesome5 name="bone" size={20} color="#FFF" /> Diet & Nutrition</Text>
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
       </View>
 
-      {/* Pet Selector */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.petBar} contentContainerStyle={styles.petBarContent}>
         {pets.map(p => (
           <TouchableOpacity
@@ -76,19 +82,22 @@ export default function DietScreen({ navigation }) {
       {loading ? (
         <ActivityIndicator size="large" color="#5EBFA4" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView 
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#5EBFA4']} />}
+        >
           {records.length === 0 && (
             <View style={styles.emptyCard}>
+              <FontAwesome5 name="bone" size={48} color="#CCC" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyTitle}>No diet plans yet</Text>
               <Text style={styles.emptySub}>Your vet will create a diet plan after your appointment.</Text>
             </View>
           )}
 
-          {records.map((r, ri) => (
+          {records.map(r => (
             <View key={r._id} style={styles.card}>
-              {/* Card Header */}
               <View style={styles.cardTop}>
-                <View style={styles.iconBox}><View style={styles.dietCircle} /></View>
+                <View style={styles.iconBox}><FontAwesome5 name="bone" size={24} color="#FF9800" /></View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.cardTitle}>{r.categoryName}</Text>
                   <Text style={styles.cardSub}><FontAwesome5 name="calendar-alt" size={12} color="#888" /> Started: {formatDate(r.startDate)}</Text>
@@ -98,14 +107,13 @@ export default function DietScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Meal Schedule */}
               {r.schedule && r.schedule.length > 0 && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Meal Schedule</Text>
                   <View style={styles.mealsRow}>
                     {r.schedule.map((entry, i) => (
                       <View key={i} style={styles.mealBox}>
-                        <Text style={styles.mealIcon}>{MEAL_ICONS[entry.time] || 'Meal'}</Text>
+                        <Text style={styles.mealIcon}>{MEAL_ICONS[entry.time] || '🍛'}</Text>
                         <Text style={styles.mealTime}>{entry.time}</Text>
                         <Text style={styles.mealPortion}>{entry.portion}</Text>
                       </View>
@@ -114,7 +122,6 @@ export default function DietScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Feeding Details */}
               {(r.portionSize || r.feedingFrequency || r.waterIntake) && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Feeding Details</Text>
@@ -124,7 +131,6 @@ export default function DietScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Restrictions */}
               {(r.allergies || r.avoidFoods) && (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
@@ -133,7 +139,6 @@ export default function DietScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Vet Instructions */}
               {r.vetInstructions ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Vet Instructions</Text>
@@ -141,27 +146,9 @@ export default function DietScreen({ navigation }) {
                 </View>
               ) : null}
 
-              {/* Special Notes */}
-              {r.specialNotes ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Special Notes</Text>
-                  <Text style={styles.noteText}>{r.specialNotes}</Text>
-                </View>
-              ) : null}
-
-              {/* Diet Chart Download */}
               {r.dietChartUrl ? (
-                <TouchableOpacity 
-                  style={styles.viewDocBtn} 
-                  onPress={() => {
-                    if (r.dietChartUrl.startsWith('data:')) {
-                      Linking.openURL(r.dietChartUrl);
-                    } else {
-                      Linking.openURL(`${baseFileUrl}${r.dietChartUrl}`);
-                    }
-                  }}
-                >
-                  <Text style={styles.viewDocText}>📄 View Diet Chart</Text>
+                <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.dietChartUrl}`)}>
+                  <Text style={styles.viewDocText}><FontAwesome5 name="file-alt" size={14} color="#2E7D32" /> View Diet Chart</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -186,7 +173,6 @@ const styles = StyleSheet.create({
   petChipTextActive: { color: '#FFF' },
   list: { padding: 20, paddingBottom: 60 },
   emptyCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 30, alignItems: 'center', marginTop: 20, elevation: 2 },
-  emptyIcon: { fontSize: 48, marginBottom: 10 },
   emptyTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   emptySub: { fontSize: 13, color: '#888', textAlign: 'center', marginTop: 6 },
   card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 },
@@ -210,5 +196,4 @@ const styles = StyleSheet.create({
   noteText: { fontSize: 13, color: '#666', lineHeight: 20, fontStyle: 'italic' },
   viewDocBtn: { marginTop: 12, backgroundColor: '#E8F5E9', borderRadius: 8, padding: 10, alignItems: 'center' },
   viewDocText: { color: '#2E7D32', fontWeight: 'bold', fontSize: 13 },
-  dietCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FF9800' },
 });

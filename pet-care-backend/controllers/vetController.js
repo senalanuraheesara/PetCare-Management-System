@@ -7,6 +7,21 @@ const VetSchedule = require('../models/VetSchedule');
 const addVet = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
+
+    if (!name || !email || !password || !phone) {
+      res.status(400);
+      throw new Error('Please provide name, email, password, and phone');
+    }
+
+    if (!email.includes('@')) {
+      res.status(400);
+      throw new Error('Invalid email format (must contain @)');
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      res.status(400);
+      throw new Error('Phone number must be exactly 10 digits');
+    }
     
     // Check if user exists
     const userExists = await User.findOne({ email });

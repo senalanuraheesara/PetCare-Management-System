@@ -13,13 +13,23 @@ const addVaccineRecord = async (req, res) => {
       throw new Error('Pet and vaccine name are required');
     }
     const pet = await Pet.findById(petId);
-    if (!pet || pet.owner.toString() !== req.user._id.toString()) {
-      res.status(401);
-      throw new Error('Not authorized or pet not found');
+    if (!pet) {
+      res.status(404);
+      throw new Error('Pet not found');
     }
+
+    // Authorization: Owner themselves, or a Vet/Admin
+    const isOwner = pet.owner.toString() === req.user._id.toString();
+    const isStaff = ['admin', 'vet'].includes(req.user.role);
+
+    if (!isOwner && !isStaff) {
+      res.status(401);
+      throw new Error('Not authorized to add records for this pet');
+    }
+
     const record = await PetVaccineRecord.create({
       pet: petId,
-      owner: req.user._id,
+      owner: pet.owner, // Always link to the actual pet owner
       vaccineName,
       dateAdministered,
       status: dateAdministered ? 'Completed' : 'Scheduled',
@@ -35,18 +45,21 @@ const addVaccineRecord = async (req, res) => {
 // @desc    Get vaccine records for the logged in user (includes admin-added records)
 const getMyVaccineRecords = async (req, res) => {
   try {
-    // Find all pets owned by this user
     const myPets = await Pet.find({ owner: req.user._id }).select('_id');
     const petIds = myPets.map(p => p._id);
 
+    // BROAD FILTER: Show records linked to user's pets OR where user is the explicit owner
     const filter = {
       $or: [
-        { owner: req.user._id },
-        { pet: { $in: petIds } }
+        { pet: { $in: petIds } },
+        { owner: req.user._id }
       ]
     };
-    if (req.query.petId) filter.$or.push({ pet: req.query.petId });
-    if (req.query.petId) { filter.$and = [{ pet: req.query.petId }]; delete filter.$or; }
+
+    if (req.query.petId) {
+      filter.pet = req.query.petId;
+      delete filter.$or; // If specific pet is requested, narrow down
+    }
 
     const records = await PetVaccineRecord.find(filter)
       .populate('pet', 'name species')

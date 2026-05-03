@@ -243,7 +243,7 @@ const addVaccineRecord = async (req, res) => {
     const record = await PetVaccineRecord.create({
       appointment: appointmentId,
       pet: appointment.pet,
-      owner: appointment.owner || req.user._id,
+      owner: appointment.owner, // Link to the pet owner from the appointment
       vaccineName,
       dateAdministered,
       status: status || (dateAdministered ? 'Completed' : 'Scheduled'),
@@ -276,7 +276,7 @@ const addMedicationRecord = async (req, res) => {
     const record = await MedicationRecord.create({
       appointment: appointmentId,
       pet: appointment.pet,
-      owner: appointment.owner || req.user._id,
+      owner: appointment.owner, // Link to the pet owner from the appointment
       medicationName,
       dosage,
       frequency,
@@ -318,7 +318,7 @@ const addDietRecord = async (req, res) => {
     const record = await FeedingRecord.create({
       appointment: appointmentId,
       pet: appointment.pet,
-      owner: appointment.owner || req.user._id,
+      owner: appointment.owner, // Link to the pet owner from the appointment
       categoryName,
       schedule: parsedSchedule,
       startDate,
