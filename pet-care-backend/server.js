@@ -50,6 +50,7 @@ const startServer = async () => {
 };
 
 startServer().catch((error) => {
-  console.error('Server failed to start:', error.message);
+  console.error('Server failed to start:', error?.message || error);
+  if (error?.stack) console.error(error.stack);
   process.exit(1);
 });

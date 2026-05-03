@@ -14,7 +14,7 @@ const apiUrl = fromEnv || fromExtra;
 
 if (!apiUrl) {
   throw new Error(
-    'Set EXPO_PUBLIC_API_BASE_URL in pet-care-mobile/.env (copy from .env.example). Example: http://127.0.0.1:5000/api'
+    'Missing EXPO_PUBLIC_API_BASE_URL in pet-care-mobile/.env. Set it to your backend API base URL (scheme, host, port if needed, and /api suffix).'
   );
 }
 

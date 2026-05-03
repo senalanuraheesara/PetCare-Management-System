@@ -51,7 +51,7 @@ For physical devices testing the app, the API must be reachable on your LAN or v
    npm install
    ```
 
-2. **Create `.env`** in `pet-care-backend/` (`cp .env.example .env` then fill values; never commit secrets):
+2. **Create `pet-care-backend/.env`** with the variables below (never commit `.env` to git):
 
    | Variable | Required | Description |
    |----------|----------|-------------|
@@ -64,6 +64,8 @@ For physical devices testing the app, the API must be reachable on your LAN or v
    | `EMAIL_USER` | Production OTP | Gmail address for OTP mail |
    | `EMAIL_PASS` | Production OTP | Gmail app password or compatible SMTP secret |
    | `ALLOW_INSECURE_GOOGLE_AUTH` | No | Must be **`true`** to allow legacy `POST /auth/google` (unverified payloads). Disabled by default |
+   | `MONGO_SKIP_DOH_FALLBACK` | No | Set to **`1`** to skip HTTPS-DNS SRV fallback (only matters for `mongodb+srv://` URIs) |
+   | `MONGO_USE_SYSTEM_DNS` | No | Set to **`1`** to skip forcing public DNS before the first SRV connect attempt |
 
 3. **Run**
 
@@ -74,9 +76,13 @@ For physical devices testing the app, the API must be reachable on your LAN or v
 
    On success you should see MongoDB connected; if both admin env vars are set, a one-time admin seed log; then `Server running on port ...`.
 
+   If you see **`ECONNREFUSED`** on `127.0.0.1:27017`, MongoDB is not running. From `pet-care-backend/`, run **`npm run mongo:up`** (requires [Docker](https://docs.docker.com/get-docker/)) or install/start MongoDB locally, or point **`MONGO_URI`** at Atlas.
+
    Health check: open `http://localhost:PORT/` — response: `API is running...`.
 
 4. **Admin seed**: runs after DB connect (`seeds/adminSeed.js`) **only when** both `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set. If omitted, the server skips seeding and logs a short warning (no baked-in defaults).
+
+5. **Admin login**: After seeding, open the mobile app **Login** screen and sign in with the same **`ADMIN_EMAIL`** and **`ADMIN_PASSWORD`** defined in `pet-care-backend/.env`.
 
 Optional script:
 
@@ -97,7 +103,7 @@ npm run seed-admin
 
 2. **Point the app at your API** (required)
 
-   Copy `.env.example` to `.env` in `pet-care-mobile/` and set **`EXPO_PUBLIC_API_BASE_URL`**. There is no default URL committed in code; misconfiguration fails fast at startup.
+   Create **`pet-care-mobile/.env`** and set **`EXPO_PUBLIC_API_BASE_URL`**; there is no default URL in code, so a missing value fails fast at startup.
 
    `app.config.js` passes through `extra.apiUrl` from that variable. `src/services/api.js` uses `EXPO_PUBLIC_API_BASE_URL` (or `extra.apiUrl`) as Axios `baseURL` (paths are relative, e.g. `/auth/login`, `/pets`).
 
@@ -146,6 +152,7 @@ See `pet-care-backend/server.js` for mounted routers and individual `routes/*.js
 ## Troubleshooting
 
 - **MongoDB errors**: Confirm `MONGO_URI` is correct and the cluster allows your IP (Atlas network access).
+- **`querySrv ECONNREFUSED` (Atlas)**: The backend retries by resolving SRV over **HTTPS DNS** (Cloudflare), then connects with a derived `mongodb://` URI—no manual change needed in most cases. If that is blocked, set **`MONGO_SKIP_DOH_FALLBACK=1`** and use Atlas’s **standard** `mongodb://host:27017,...` string instead of `mongodb+srv://`, or fix VPN/firewall/DNS.
 - **401 / JWT**: Ensure `JWT_SECRET` matches between issuing tokens and verifying; Authorization header format `Bearer <token>`.
 - **Mobile cannot reach API**: Wrong `EXPO_PUBLIC_API_BASE_URL`; use emulator host mapping or LAN IP; keep `/api` suffix consistent with backend mounts.
 - **`Missing API configuration` on app launch**: Define `EXPO_PUBLIC_API_BASE_URL` in `pet-care-mobile/.env` and restart Expo.
