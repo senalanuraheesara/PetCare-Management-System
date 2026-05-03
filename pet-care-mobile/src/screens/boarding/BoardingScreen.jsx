@@ -37,27 +37,54 @@ export default function BoardingScreen({ navigation }) {
   const [pets, setPets] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [roomsLoading, setRoomsLoading] = useState(false);
 
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedPet, setSelectedPet] = useState(null);
 
-  const [checkIn, setCheckIn] = useState(new Date());
-  const [checkOut, setCheckOut] = useState(new Date(Date.now() + 86400000));
+  const [checkIn, setCheckIn] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [checkOut, setCheckOut] = useState(() => {
+    const d = new Date(Date.now() + 86400000);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [showCheckOut, setShowCheckOut] = useState(false);
+  const [showBrowseCheckIn, setShowBrowseCheckIn] = useState(false);
+  const [showBrowseCheckOut, setShowBrowseCheckOut] = useState(false);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    fetchRooms();
     fetchPets();
     fetchBookings();
   }, []);
 
+  useEffect(() => {
+    if (tab !== 'rooms') return;
+    fetchRooms();
+  }, [tab, checkIn.getTime(), checkOut.getTime()]);
+
   const fetchRooms = async () => {
-    try { const { data } = await api.get('/boarding/rooms', authHeader); setRooms(data); }
-    catch (e) { console.error('fetchRooms', e); }
+    if (checkOut <= checkIn) {
+      setRooms([]);
+      return;
+    }
+    setRoomsLoading(true);
+    try {
+      const q = `?checkIn=${encodeURIComponent(checkIn.toISOString())}&checkOut=${encodeURIComponent(checkOut.toISOString())}`;
+      const { data } = await api.get(`/boarding/rooms${q}`, authHeader);
+      setRooms(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('fetchRooms', e);
+    } finally {
+      setRoomsLoading(false);
+    }
   };
 
   const fetchPets = async () => {
@@ -80,8 +107,6 @@ export default function BoardingScreen({ navigation }) {
 
   const openBookModal = (room) => {
     setSelectedRoom(room);
-    setCheckIn(new Date());
-    setCheckOut(new Date(Date.now() + 86400000));
     setNotes('');
     setShowModal(true);
   };
@@ -100,6 +125,7 @@ export default function BoardingScreen({ navigation }) {
       Alert.alert('Booked! 🏡', `${selectedRoom.name} reserved for ${selectedPet.name}\n${nights} night(s) · Rs. ${estimatedCost}`);
       setShowModal(false);
       fetchBookings();
+      fetchRooms();
       setTab('history');
     } catch (e) { Alert.alert('Error', e.response?.data?.message || 'Could not book'); }
   };
@@ -132,7 +158,7 @@ export default function BoardingScreen({ navigation }) {
       {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'rooms' && styles.tabActive]} onPress={() => setTab('rooms')}>
-          <Text style={[styles.tabText, tab === 'rooms' && styles.tabTextActive]}>Room Types</Text>
+          <Text style={[styles.tabText, tab === 'rooms' && styles.tabTextActive]}>Cage Types</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.tab, tab === 'history' && styles.tabActive]} onPress={() => setTab('history')}>
           <Text style={[styles.tabText, tab === 'history' && styles.tabTextActive]}>My Bookings</Text>
@@ -156,16 +182,66 @@ export default function BoardingScreen({ navigation }) {
         </View>
       )}
 
-      {/* Room Types Tab */}
+      {/* Cage types (availability for selected dates) */}
       {tab === 'rooms' && (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {rooms.length === 0 && (
+          <Text style={styles.browseHint}>Pick dates to see cage types with space left for your stay.</Text>
+          <View style={styles.dateRow}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.fieldLabel}>Check-In</Text>
+              <TouchableOpacity style={styles.dateField} onPress={() => setShowBrowseCheckIn(true)}>
+                <Text style={styles.dateFieldText}><FontAwesome5 name="calendar-alt" size={14} color="#888" /> {checkIn.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+              {showBrowseCheckIn && (
+                <DateTimePicker value={checkIn} mode="date" display="default" minimumDate={new Date()}
+                  onChange={(e, d) => { setShowBrowseCheckIn(Platform.OS === 'ios'); if (d) {
+                    const next = new Date(d);
+                    next.setHours(0, 0, 0, 0);
+                    setCheckIn(next);
+                    setCheckOut((co) => {
+                      const minOut = new Date(next.getTime() + 86400000);
+                      return co <= next ? minOut : co;
+                    });
+                  } }} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>Check-Out</Text>
+              <TouchableOpacity style={styles.dateField} onPress={() => setShowBrowseCheckOut(true)}>
+                <Text style={styles.dateFieldText}><FontAwesome5 name="calendar-alt" size={14} color="#888" /> {checkOut.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+              {showBrowseCheckOut && (
+                <DateTimePicker value={checkOut} mode="date" display="default" minimumDate={new Date(checkIn.getTime() + 86400000)}
+                  onChange={(e, d) => { setShowBrowseCheckOut(Platform.OS === 'ios'); if (d) {
+                    const next = new Date(d);
+                    next.setHours(0, 0, 0, 0);
+                    setCheckOut(next);
+                  } }} />
+              )}
+            </View>
+          </View>
+
+          {roomsLoading && <ActivityIndicator size="small" color="#5EBFA4" style={{ marginBottom: 12 }} />}
+
+          {!roomsLoading && checkOut <= checkIn && (
             <View style={styles.emptyCard}>
-              <FontAwesome5 name="home" size={48} color="#CCC" style={{ marginBottom: 10 }} />
-              <Text style={styles.emptyText}>No room types available yet.</Text>
+              <FontAwesome5 name="calendar-times" size={48} color="#CCC" style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyText}>Check-out must be after check-in.</Text>
             </View>
           )}
-          {rooms.map(r => (
+
+          {!roomsLoading && checkOut > checkIn && rooms.length === 0 && (
+            <View style={styles.emptyCard}>
+              <FontAwesome5 name="home" size={48} color="#CCC" style={{ marginBottom: 10 }} />
+              <Text style={styles.emptyText}>No cage types available for these dates.</Text>
+              <Text style={styles.emptySub}>Try different dates—the list only shows cage types that still have space.</Text>
+            </View>
+          )}
+
+          {rooms.map(r => {
+            const cap = Number(r.capacity) >= 1 ? Number(r.capacity) : 1;
+            const left = typeof r.availableSpots === 'number' ? r.availableSpots : cap;
+            return (
             <View key={r._id} style={styles.roomCard}>
               <View style={styles.roomTop}>
                 {r.image ? (
@@ -177,7 +253,7 @@ export default function BoardingScreen({ navigation }) {
                   <Text style={styles.roomName}>{r.name}</Text>
                   <View style={styles.pillRow}>
                     <View style={styles.pillGreen}><Text style={styles.pillGreenText}><FontAwesome5 name="money-bill-wave" size={10} color="#2E7D32" /> Rs. {r.dailyRate}/night</Text></View>
-                    <View style={styles.pillBlue}><Text style={styles.pillBlueText}><FontAwesome5 name="bed" size={10} color="#1565C0" /> Cap: {r.capacity}</Text></View>
+                    <View style={styles.pillBlue}><Text style={styles.pillBlueText}><FontAwesome5 name="bed" size={10} color="#1565C0" /> {left} spot{left !== 1 ? 's' : ''} left (of {cap})</Text></View>
                   </View>
                 </View>
               </View>
@@ -192,7 +268,8 @@ export default function BoardingScreen({ navigation }) {
                 </Text>
               </TouchableOpacity>
             </View>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
 
@@ -204,7 +281,7 @@ export default function BoardingScreen({ navigation }) {
             <View style={styles.emptyCard}>
               <FontAwesome5 name="clipboard-list" size={48} color="#CCC" style={{ marginBottom: 10 }} />
               <Text style={styles.emptyText}>No boarding history yet.</Text>
-              <Text style={styles.emptySub}>Switch to "Room Types" to make a reservation.</Text>
+              <Text style={styles.emptySub}>Switch to &quot;Cage Types&quot; to make a reservation.</Text>
             </View>
           )}
           {bookings.map(b => {
@@ -245,7 +322,7 @@ export default function BoardingScreen({ navigation }) {
       <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Reserve a Room</Text>
+            <Text style={styles.modalTitle}>Reserve boarding</Text>
             {selectedRoom && (
               <View style={styles.confirmRoom}>
                 {selectedRoom.image ? (
@@ -279,7 +356,15 @@ export default function BoardingScreen({ navigation }) {
                 </TouchableOpacity>
                 {showCheckIn && (
                   <DateTimePicker value={checkIn} mode="date" display="default" minimumDate={new Date()}
-                    onChange={(e, d) => { setShowCheckIn(Platform.OS === 'ios'); if (d) setCheckIn(d); }} />
+                    onChange={(e, d) => { setShowCheckIn(Platform.OS === 'ios'); if (d) {
+                      const next = new Date(d);
+                      next.setHours(0, 0, 0, 0);
+                      setCheckIn(next);
+                      setCheckOut((co) => {
+                        const minOut = new Date(next.getTime() + 86400000);
+                        return co <= next ? minOut : co;
+                      });
+                    } }} />
                 )}
               </View>
               <View style={{ flex: 1 }}>
@@ -289,7 +374,11 @@ export default function BoardingScreen({ navigation }) {
                 </TouchableOpacity>
                 {showCheckOut && (
                   <DateTimePicker value={checkOut} mode="date" display="default" minimumDate={new Date(checkIn.getTime() + 86400000)}
-                    onChange={(e, d) => { setShowCheckOut(Platform.OS === 'ios'); if (d) setCheckOut(d); }} />
+                    onChange={(e, d) => { setShowCheckOut(Platform.OS === 'ios'); if (d) {
+                      const next = new Date(d);
+                      next.setHours(0, 0, 0, 0);
+                      setCheckOut(next);
+                    } }} />
                 )}
               </View>
             </View>
@@ -344,6 +433,7 @@ const styles = StyleSheet.create({
   petChipText: { fontSize: 13, color: '#555', fontWeight: 'bold' },
   petChipTextActive: { color: '#FFF' },
   list: { padding: 20, paddingBottom: 60 },
+  browseHint: { fontSize: 13, color: '#666', marginBottom: 12, lineHeight: 18 },
   emptyCard: { backgroundColor: '#FFF', borderRadius: 16, padding: 30, alignItems: 'center', marginTop: 20, elevation: 3 },
   emptyIcon: { fontSize: 48, marginBottom: 10 },
   emptyText: { fontSize: 15, fontWeight: 'bold', color: '#333', textAlign: 'center', marginBottom: 4 },

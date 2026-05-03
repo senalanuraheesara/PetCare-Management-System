@@ -107,9 +107,16 @@ export default function DietScreen({ navigation }) {
                 </View>
               </View>
 
-              {r.schedule && r.schedule.length > 0 && (
+              {r.specialNotes?.trim() ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Meal Schedule</Text>
+                  <Text style={styles.sectionTitle}>Feeding plan</Text>
+                  <Text style={styles.planBody}>{r.specialNotes.trim()}</Text>
+                </View>
+              ) : null}
+
+              {r.schedule && r.schedule.length > 0 && !r.specialNotes?.trim() ? (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Meal schedule</Text>
                   <View style={styles.mealsRow}>
                     {r.schedule.map((entry, i) => (
                       <View key={i} style={styles.mealBox}>
@@ -120,7 +127,7 @@ export default function DietScreen({ navigation }) {
                     ))}
                   </View>
                 </View>
-              )}
+              ) : null}
 
               {(r.portionSize || r.feedingFrequency || r.waterIntake) && (
                 <View style={styles.section}>
@@ -139,16 +146,28 @@ export default function DietScreen({ navigation }) {
                 </View>
               )}
 
-              {r.vetInstructions ? (
+              {r.vetInstructions?.trim() && !r.specialNotes?.trim() ? (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Vet Instructions</Text>
-                  <Text style={styles.noteText}>{r.vetInstructions}</Text>
+                  <Text style={styles.sectionTitle}>Vet instructions</Text>
+                  <Text style={styles.noteText}>{r.vetInstructions.trim()}</Text>
                 </View>
               ) : null}
 
               {r.dietChartUrl ? (
-                <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.dietChartUrl}`)}>
-                  <Text style={styles.viewDocText}><FontAwesome5 name="file-alt" size={14} color="#2E7D32" /> View Diet Chart</Text>
+                <TouchableOpacity
+                  style={styles.viewDocBtn}
+                  onPress={() => {
+                    const u = String(r.dietChartUrl).trim();
+                    const href =
+                      u.startsWith('http://') || u.startsWith('https://')
+                        ? u
+                        : `${baseFileUrl}${u.startsWith('/') ? u : `/${u}`}`;
+                    Linking.openURL(href).catch(() => {});
+                  }}
+                >
+                  <Text style={styles.viewDocText}>
+                    <FontAwesome5 name="file-alt" size={14} color="#2E7D32" /> View diet chart
+                  </Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -186,6 +205,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: 'bold', color: '#555' },
   section: { borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 12, marginTop: 10 },
   sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#444', marginBottom: 8 },
+  planBody: { fontSize: 14, color: '#333', lineHeight: 21 },
   mealsRow: { flexDirection: 'row', gap: 8 },
   mealBox: { flex: 1, backgroundColor: '#F9FAFB', borderRadius: 10, padding: 10, alignItems: 'center' },
   mealIcon: { fontSize: 20, marginBottom: 4 },

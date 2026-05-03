@@ -3,6 +3,14 @@ const BoardingRoom = require('../models/BoardingRoom');
 const BoardingBooking = require('../models/BoardingBooking');
 const Pet = require('../models/Pet');
 
+/** Bookings that still reserve a spot (not cancelled / rejected / completed stay) */
+const OCCUPYING_STATUSES = ['Pending', 'Confirmed', 'Checked In'];
+
+function roomCapacity(room) {
+  const c = Number(room?.capacity);
+  return Number.isFinite(c) && c >= 1 ? c : 1;
+}
+
 // ─── ADMIN: Room Type Management ──────────────────────────────────────────────
 
 const createRoom = async (req, res) => {
@@ -22,8 +30,60 @@ const createRoom = async (req, res) => {
 const getRooms = async (req, res) => {
   try {
     const rooms = await BoardingRoom.find({ isActive: true }).sort({ name: 1 });
-    res.status(200).json(rooms);
-  } catch (error) { res.status(400).json({ message: error.message }); }
+    const checkInQ = req.query.checkIn;
+    const checkOutQ = req.query.checkOut;
+
+    let rangeStart;
+    let rangeEnd;
+    let filterByAvailability = false;
+    if (checkInQ && checkOutQ) {
+      rangeStart = new Date(checkInQ);
+      rangeEnd = new Date(checkOutQ);
+      if (!Number.isNaN(rangeStart.getTime()) && !Number.isNaN(rangeEnd.getTime()) && rangeEnd > rangeStart) {
+        filterByAvailability = true;
+      }
+    }
+
+    if (!filterByAvailability) {
+      const payload = rooms.map((room) => {
+        const o = room.toObject();
+        o.availableSpots = roomCapacity(room);
+        o.bookedSpots = 0;
+        return o;
+      });
+      return res.status(200).json(payload);
+    }
+
+    const roomIds = rooms.map((r) => r._id);
+    const overlapping = await BoardingBooking.find({
+      room: { $in: roomIds },
+      status: { $in: OCCUPYING_STATUSES },
+      checkIn: { $lt: rangeEnd },
+      checkOut: { $gt: rangeStart },
+    }).select('room');
+
+    const bookedByRoom = overlapping.reduce((acc, b) => {
+      const k = b.room.toString();
+      acc[k] = (acc[k] || 0) + 1;
+      return acc;
+    }, {});
+
+    const enriched = rooms.map((room) => {
+      const o = room.toObject();
+      const cap = roomCapacity(room);
+      const booked = bookedByRoom[room._id.toString()] || 0;
+      o.bookedSpots = booked;
+      o.availableSpots = Math.max(0, cap - booked);
+      return o;
+    });
+
+    const adminIncludeFull =
+      req.query.includeFull === 'true' && req.user && req.user.role === 'admin';
+    const list = adminIncludeFull ? enriched : enriched.filter((r) => r.availableSpots > 0);
+    res.status(200).json(list);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
 };
 
 const getAllRooms = async (req, res) => {
@@ -77,6 +137,29 @@ const createBooking = async (req, res) => {
     }
     const room = await BoardingRoom.findById(roomId);
     if (!room) { res.status(404); throw new Error('Room not found'); }
+    if (!room.isActive) {
+      res.status(400);
+      throw new Error('This cage type is not available');
+    }
+
+    const reqIn = new Date(checkIn);
+    const reqOut = new Date(checkOut);
+    if (Number.isNaN(reqIn.getTime()) || Number.isNaN(reqOut.getTime()) || reqOut <= reqIn) {
+      res.status(400);
+      throw new Error('Invalid check-in or check-out dates');
+    }
+
+    const cap = roomCapacity(room);
+    const overlapCount = await BoardingBooking.countDocuments({
+      room: roomId,
+      status: { $in: OCCUPYING_STATUSES },
+      checkIn: { $lt: reqOut },
+      checkOut: { $gt: reqIn },
+    });
+    if (overlapCount >= cap) {
+      res.status(400);
+      throw new Error('No spots left for this cage type on the selected dates');
+    }
 
     const nights = Math.max(1, Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)));
     const totalCost = nights * room.dailyRate;
