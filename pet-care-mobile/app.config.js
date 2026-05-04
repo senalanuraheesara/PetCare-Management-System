@@ -22,11 +22,11 @@ module.exports = {
       }
     },
     orientation: "portrait",
-    icon: "./assets/1.png",
+    icon: "./assets/app-icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
-      image: "./assets/splash-icon.png",
+      image: "./assets/app-icon.png",
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
@@ -41,7 +41,7 @@ module.exports = {
     android: {
       package: "com.petcare.mobileapp",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
+        foregroundImage: "./assets/app-icon.png",
         backgroundColor: "#ffffff"
       },
       edgeToEdgeEnabled: true,
@@ -53,7 +53,7 @@ module.exports = {
       checkAutomatically: "ON_ERROR_RECOVERY"
     },
     web: {
-      favicon: "./assets/favicon.png"
+      favicon: "./assets/app-icon.png"
     },
     plugins: [
       "@react-native-community/datetimepicker"
