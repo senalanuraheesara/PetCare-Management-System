@@ -92,6 +92,13 @@ export default function AdminMedicationManagementScreen({ navigation }) {
   };
 
   const handleSave = async () => {
+    const multipartHeader = {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        'Content-Type': 'multipart/form-data',
+      }
+    };
+
     if (editingId) {
       // Edit single record
       if (!editMedName || !editDosage || !editFrequency) return Alert.alert('Error', 'Medication name, dosage and frequency required');
@@ -100,14 +107,17 @@ export default function AdminMedicationManagementScreen({ navigation }) {
       formData.append('dosage', editDosage);
       formData.append('frequency', editFrequency);
       formData.append('notes', notes);
-      if (prescriptionUri && !prescriptionUri.startsWith('http')) {
+      if (prescriptionUri && !prescriptionUri.startsWith('http') && !prescriptionUri.startsWith('data:')) {
         const ext = prescriptionUri.split('.').pop().split('?')[0] || 'jpg';
         formData.append('prescription', { uri: prescriptionUri, name: `rx.${ext}`, type: `image/${ext}` });
       }
       try {
-        await api.put(`/medications/records/admin/${editingId}`, formData, authHeader);
+        await api.put(`/medications/records/admin/${editingId}`, formData, multipartHeader);
         setShowModal(false); fetchRecords(); Alert.alert('Success', 'Record updated');
-      } catch (e) { Alert.alert('Error', e.response?.data?.message || 'Save failed'); }
+      } catch (e) {
+        console.error('Edit error:', JSON.stringify(e.response?.data || e.message));
+        Alert.alert('Error', e.response?.data?.message || e.message || 'Save failed');
+      }
     } else {
       // Add: submit one record per medication row
       const valid = medications.filter(m => m.medicationName.trim() && m.dosage.trim() && m.frequency.trim());
@@ -116,21 +126,24 @@ export default function AdminMedicationManagementScreen({ navigation }) {
       try {
         const uploads = valid.map(async (med, idx) => {
           const formData = new FormData();
-          formData.append('medicationName', med.medicationName);
-          formData.append('dosage', med.dosage);
-          formData.append('frequency', med.frequency);
+          formData.append('medicationName', med.medicationName.trim());
+          formData.append('dosage', med.dosage.trim());
+          formData.append('frequency', med.frequency.trim());
           formData.append('notes', notes);
           formData.append('startDate', new Date().toISOString());
-          if (idx === 0 && prescriptionUri && !prescriptionUri.startsWith('http')) {
+          if (idx === 0 && prescriptionUri && !prescriptionUri.startsWith('http') && !prescriptionUri.startsWith('data:')) {
             const ext = prescriptionUri.split('.').pop().split('?')[0] || 'jpg';
             formData.append('prescription', { uri: prescriptionUri, name: `rx.${ext}`, type: `image/${ext}` });
           }
-          return api.post(`/appointments/${selectedAppId}/medication`, formData, authHeader);
+          return api.post(`/appointments/${selectedAppId}/medication`, formData, multipartHeader);
         });
         await Promise.all(uploads);
         setShowModal(false); fetchRecords();
         Alert.alert('Success', `${valid.length} medication(s) saved`);
-      } catch (e) { Alert.alert('Error', e.response?.data?.message || 'Save failed'); }
+      } catch (e) {
+        console.error('Add error:', JSON.stringify(e.response?.data || e.message));
+        Alert.alert('Error', e.response?.data?.message || e.message || 'Save failed');
+      }
     }
   };
 
