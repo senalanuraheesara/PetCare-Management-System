@@ -126,29 +126,31 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
   // 2. Try SMTP
   const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim().toLowerCase();
   const isGmail = smtpHost.includes('gmail.com') || user.toLowerCase().endsWith('@gmail.com');
-
-  // Try the simplest Gmail config first if applicable
+  
   if (isGmail) {
+    console.log(`[OTP] Attempting Gmail Service for ${to}...`);
     const gmailTransporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass },
-      connectionTimeout: 10000, // 10s
+      connectionTimeout: 10000,
+      tls: { rejectUnauthorized: false } // Helps in some restricted environments
     });
 
     try {
       await Promise.race([
         gmailTransporter.sendMail({ from: user, to, subject, text }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Gmail timeout')), 8000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Gmail timeout (8s)')), 8000))
       ]);
+      console.log(`[OTP] Email sent successfully via Gmail Service to ${to}`);
       gmailTransporter.close();
       return true;
     } catch (err) {
-      console.warn(`[OTP] Primary Gmail SMTP failed: ${err.message}`);
+      console.error(`[OTP] Gmail Service failed for ${to}:`, err.message);
       gmailTransporter.close();
     }
   }
 
-  // Fallback to manual port/IP logic (useful for some cloud environments)
+  // Fallback to manual port/IP logic
   const envPort = Number(process.env.SMTP_PORT);
   const tryPorts =
     Number.isFinite(envPort) && envPort > 0
@@ -156,6 +158,7 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
       : [465, 587];
 
   const { host: connectHost, tlsServername } = await smtpIpv4ConnectTarget(smtpHost);
+  console.log(`[OTP] Trying manual SMTP fallback via ${connectHost} for ${to}...`);
 
   for (const smtpPort of tryPorts) {
     const secure = smtpPort === 465;
@@ -177,12 +180,13 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     try {
       await Promise.race([
         transporter.sendMail({ from: user, to, subject, text }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`Port ${smtpPort} timeout`)), 8000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Port ${smtpPort} timeout (8s)`)), 8000))
       ]);
+      console.log(`[OTP] Email sent successfully via Port ${smtpPort} to ${to}`);
       transporter.close();
       return true;
     } catch (err) {
-      console.error(`[OTP] SMTP port ${smtpPort} failed:`, err.message);
+      console.error(`[OTP] SMTP port ${smtpPort} failed for ${to}:`, err.message);
       transporter.close();
     }
   }
