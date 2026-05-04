@@ -36,6 +36,7 @@ module.exports = {
       }
     },
     android: {
+      package: "com.petcare.mobileapp",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"
