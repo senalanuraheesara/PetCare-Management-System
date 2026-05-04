@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, Alert, RefreshControl, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, Alert, RefreshControl, Linking, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import api, { getBackendOrigin, resolveMediaUrl } from '../../services/api';
@@ -9,6 +9,8 @@ export default function AppointmentsScreen({ navigation }) {
   const { userToken } = useContext(AuthContext);
   const [appointments, setAppointments] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [invoiceVisible, setInvoiceVisible] = useState(false);
+  const [invoiceUrl, setInvoiceUrl] = useState('');
 
   useLayoutEffect(() => {
     if(navigation) navigation.setOptions({ headerShown: false });
@@ -53,17 +55,21 @@ export default function AppointmentsScreen({ navigation }) {
   };
 
   const handleReschedule = (app) => {
-    // Navigate to a Booking screen or show a reschedule modal.
-    // We can simply instruct the user to cancel and book a new one for now or pass context to booking.
     Alert.alert("Reschedule", "To reschedule, please cancel this appointment and book a new one.");
   };
 
-  const handleViewInvoice = (invoiceUrl) => {
-    const fullUrl = resolveMediaUrl(invoiceUrl);
-    Linking.openURL(fullUrl).catch(err => {
-      console.error("Failed to open URL", err);
-      Alert.alert("Error", "Could not open the invoice.");
-    });
+  const handleViewInvoice = (url) => {
+    const fullUrl = resolveMediaUrl(url);
+    // Base64 data URIs cannot be opened in Android browser — show in-app viewer
+    if (fullUrl.startsWith('data:')) {
+      setInvoiceUrl(fullUrl);
+      setInvoiceVisible(true);
+    } else {
+      Linking.openURL(fullUrl).catch(err => {
+        console.error("Failed to open URL", err);
+        Alert.alert("Error", "Could not open the invoice.");
+      });
+    }
   };
 
   return (
@@ -142,6 +148,22 @@ export default function AppointmentsScreen({ navigation }) {
         </TouchableOpacity>
 
       </ScrollView>
+
+      {/* In-app Invoice Viewer Modal (for base64 stored invoices) */}
+      <Modal visible={invoiceVisible} animationType="slide" onRequestClose={() => setInvoiceVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 12 }}>
+            <TouchableOpacity onPress={() => setInvoiceVisible(false)} style={{ padding: 8, backgroundColor: '#333', borderRadius: 8 }}>
+              <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>✕ Close</Text>
+            </TouchableOpacity>
+          </View>
+          <Image
+            source={{ uri: invoiceUrl }}
+            style={{ flex: 1, resizeMode: 'contain' }}
+          />
+        </SafeAreaView>
+      </Modal>
+
     </View>
   );
 }
