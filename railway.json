@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "watchPatterns": ["pet-care-backend/**"]
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/api/build-info",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

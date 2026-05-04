@@ -46,6 +46,11 @@ app.get('/build-info', (req, res) => {
   res.redirect(307, '/api/build-info');
 });
 
+// Some hosts default health checks to /health — keep in sync with railway.json if used
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: SERVER_BUILD_TAG });
+});
+
 // Register password reset on the app first so POST /api/auth/pw-reset always resolves
 // (avoids "Cannot POST /api/auth/pw-reset" if an old auth router bundle is cached).
 app.post('/api/auth/pw-reset', authController.resetPassword);
