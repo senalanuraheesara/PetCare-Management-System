@@ -36,10 +36,11 @@ export default function RegisterScreen({ navigation }) {
 
     setIsLoading(true);
     try {
-      await api.post('/auth/send-otp', { email });
-      alert(
-        `We sent a 6-digit verification code to:\n${email.trim()}\n\nCheck your inbox and spam folder, then enter the code on the next screen.`
-      );
+      const { data } = await api.post('/auth/send-otp', { email });
+      const msg = data?.message || 'Verification code sent';
+      const devOtp = data?.otp ? `\n\n(Debug OTP: ${data.otp})` : '';
+      
+      alert(`${msg}${devOtp}`);
       navigation.navigate('OtpVerification', { name, email, password });
     } catch (error) {
       alert(formatApiError(error, 'Failed to send OTP'));

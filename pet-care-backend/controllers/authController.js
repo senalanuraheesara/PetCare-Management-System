@@ -12,7 +12,12 @@ const OTP = require('../models/OTP');
  */
 async function smtpIpv4ConnectTarget(hostname) {
   try {
-    const { address } = await dns.promises.lookup(hostname, { family: 4 });
+    // Timeout DNS lookup after 5s
+    const lookupPromise = dns.promises.lookup(hostname, { family: 4 });
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('DNS timeout')), 5000));
+    
+    const { address } = await Promise.race([lookupPromise, timeoutPromise]);
+    
     if (address && net.isIPv4(address)) {
       return { host: address, tlsServername: hostname };
     }
@@ -127,18 +132,18 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     const gmailTransporter = nodemailer.createTransport({
       service: 'gmail',
       auth: { user, pass },
-      connectionTimeout: 20000,
+      connectionTimeout: 10000, // 10s
     });
 
     try {
       await Promise.race([
         gmailTransporter.sendMail({ from: user, to, subject, text }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Gmail SMTP timeout')), 25000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Gmail timeout')), 8000))
       ]);
       gmailTransporter.close();
       return true;
     } catch (err) {
-      console.warn(`[OTP] Primary Gmail SMTP failed: ${err.message}. Trying manual ports...`);
+      console.warn(`[OTP] Primary Gmail SMTP failed: ${err.message}`);
       gmailTransporter.close();
     }
   }
@@ -160,24 +165,24 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
       secure,
       ...(smtpPort === 587 ? { requireTLS: true } : {}),
       auth: { user, pass },
-      connectionTimeout: 20000,
-      socketTimeout: 20000,
+      connectionTimeout: 10000,
+      socketTimeout: 10000,
       tls: {
         servername: tlsServername || smtpHost,
         minVersion: 'TLSv1.2',
-        rejectUnauthorized: false // Often helps with IP-based connections
+        rejectUnauthorized: false
       },
     });
 
     try {
       await Promise.race([
         transporter.sendMail({ from: user, to, subject, text }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`SMTP port ${smtpPort} timeout`)), 25000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Port ${smtpPort} timeout`)), 8000))
       ]);
       transporter.close();
       return true;
     } catch (err) {
-      console.error(`[OTP] SMTP port ${smtpPort} failed for ${to}:`, err.message);
+      console.error(`[OTP] SMTP port ${smtpPort} failed:`, err.message);
       transporter.close();
     }
   }
