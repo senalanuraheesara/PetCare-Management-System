@@ -56,9 +56,11 @@ export default function OtpScreen({ route, navigation }) {
   const handleResend = async () => {
     setIsLoading(true);
     try {
-      const { data } = await api.post('/auth/send-otp', { email });
-      const extra = data?.otp ? ` Use code: ${data.otp}` : '';
-      Alert.alert('OTP Sent', `A new OTP has been sent.${data?.otp ? extra : ' Check your email.'}`);
+      await api.post('/auth/send-otp', { email });
+      Alert.alert(
+        'OTP sent',
+        `A new code was sent to your email (${email}). Check your inbox and spam folder.`
+      );
       setTimeLeft(120); // Reset timer to 2 minutes
     } catch (error) {
       Alert.alert('Error', formatApiError(error, 'Failed to resend OTP'));

@@ -43,7 +43,7 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
 
   if (!user || !pass) {
     console.warn(
-      `[OTP] EMAIL_USER/EMAIL_PASS not set — OTP for ${email} (${purpose}): ${otp} (also sent in API response)`
+      `[OTP] EMAIL_USER/EMAIL_PASS not set — cannot email ${email} (${purpose}). Set Gmail credentials on the server for production.`
     );
     return false;
   }
@@ -119,14 +119,28 @@ const sendOTP = async (req, res) => {
 
     const emailSent = await sendEmailOTP(email.trim(), otp, purpose);
 
+    const exposeOtpInApi =
+      process.env.NODE_ENV !== 'production' ||
+      process.env.EXPOSE_OTP_IN_RESPONSE === 'true' ||
+      process.env.EXPOSE_OTP_IN_RESPONSE === '1';
+
+    if (!emailSent && !exposeOtpInApi) {
+      await OTP.deleteMany({ email: emailNorm });
+      return res.status(503).json({
+        message: mailConfigured
+          ? 'We could not deliver the verification email. Check EMAIL_USER / EMAIL_PASS on the server and try again, or check spam.'
+          : 'Email is not configured on the server. Set EMAIL_USER and EMAIL_PASS so codes are sent to the address you entered.',
+      });
+    }
+
     const responsePayload = {
       message: emailSent
         ? `OTP sent successfully for ${purpose}`
         : mailConfigured
-          ? 'Email could not be delivered in time; use the code below to continue.'
-          : `OTP generated for ${purpose}`,
+          ? 'Email could not be delivered in time; use the code below to continue (dev / debug only).'
+          : `OTP generated for ${purpose} (dev / debug only)`,
     };
-    if (!emailSent) {
+    if (!emailSent && exposeOtpInApi) {
       responsePayload.otp = otp;
     }
 
