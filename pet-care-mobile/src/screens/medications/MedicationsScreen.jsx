@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import api, { getBackendOrigin } from '../../services/api';
+import api, { getBackendOrigin, resolveMediaUrl } from '../../services/api';
 
 export default function MedicationsScreen({ navigation }) {
   const { userToken } = useContext(AuthContext);
@@ -101,7 +101,7 @@ export default function MedicationsScreen({ navigation }) {
               {r.prescriptionFileUrl ? (
                 <TouchableOpacity 
                   style={styles.viewDocBtn} 
-                  onPress={() => Linking.openURL(`${baseFileUrl}${r.prescriptionFileUrl}`)}
+                  onPress={() => Linking.openURL(resolveMediaUrl(r.prescriptionFileUrl))}
                 >
                   <Text style={styles.viewDocText}><FontAwesome5 name="file-medical" size={14} color="#4A90E2" /> View Prescription</Text>
                 </TouchableOpacity>

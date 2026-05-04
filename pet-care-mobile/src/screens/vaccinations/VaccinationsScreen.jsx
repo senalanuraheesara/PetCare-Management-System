@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import api, { getBackendOrigin } from '../../services/api';
+import api, { getBackendOrigin, resolveMediaUrl } from '../../services/api';
 
 export default function VaccinationsScreen({ navigation }) {
   const { userToken } = useContext(AuthContext);
@@ -298,7 +298,7 @@ export default function VaccinationsScreen({ navigation }) {
                     </Text>
                   ) : null}
                   {r.documentUrl ? (
-                    <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(`${baseFileUrl}${r.documentUrl}`)}>
+                    <TouchableOpacity style={styles.viewDocBtn} onPress={() => Linking.openURL(resolveMediaUrl(r.documentUrl))}>
                       <Text style={styles.viewDocText}>
                         <FontAwesome5 name="file-pdf" size={14} color="#4A90E2" /> View certificate
                       </Text>

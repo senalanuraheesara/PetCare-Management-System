@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, Alert, RefreshControl, Linking } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import api, { getBackendOrigin } from '../../services/api';
+import api, { getBackendOrigin, resolveMediaUrl } from '../../services/api';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function AppointmentsScreen({ navigation }) {
@@ -59,9 +59,7 @@ export default function AppointmentsScreen({ navigation }) {
   };
 
   const handleViewInvoice = (invoiceUrl) => {
-    const origin = getBackendOrigin();
-    const path = invoiceUrl.startsWith('/') ? invoiceUrl : `/${invoiceUrl}`;
-    const fullUrl = `${origin}${path}`;
+    const fullUrl = resolveMediaUrl(invoiceUrl);
     Linking.openURL(fullUrl).catch(err => {
       console.error("Failed to open URL", err);
       Alert.alert("Error", "Could not open the invoice.");
