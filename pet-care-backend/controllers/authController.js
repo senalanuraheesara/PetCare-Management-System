@@ -42,11 +42,54 @@ const SMTP_TIMEOUT_MS = Math.min(
   60000
 );
 
+const RESEND_TIMEOUT_MS = Math.min(
+  Math.max(Number(process.env.RESEND_TIMEOUT_MS) || 15000, 5000),
+  30000
+);
+
 /**
- * Sends OTP email when SMTP is configured. Never throws — callers rely on return value.
- * Gmail from Railway can otherwise hang for minutes (blocked port, bad app password, etc.),
- * which caused mobile clients to hit Axios 30s timeouts.
- * @returns {Promise<boolean>} true if mail was accepted by SMTP
+ * Resend over HTTPS avoids SMTP port / IPv6 issues on hosts like Railway.
+ * Set RESEND_API_KEY + RESEND_FROM (verified domain in Resend, e.g. "Pet Care <otp@yourdomain.com>").
+ */
+async function sendOtpViaResend(toEmail, subject, text) {
+  const key = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM?.trim();
+  if (!key || !from) return false;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RESEND_TIMEOUT_MS);
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [toEmail],
+        subject,
+        text,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      console.error(`[OTP] Resend HTTP ${res.status} for ${toEmail}:`, raw.slice(0, 800));
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error(`[OTP] Resend failed for ${toEmail}:`, err?.message || err);
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Sends OTP by email. Tries Resend first (HTTPS), then Gmail SMTP. Never throws.
+ * @returns {Promise<boolean>} true if a provider accepted the message
  */
 const sendEmailOTP = async (email, otp, purpose = 'registration') => {
   const subject = purpose === 'login'
@@ -56,14 +99,24 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     ? `Your OTP for login is: ${otp}`
     : `Your OTP for registration is: ${otp}`;
 
+  const to = email.trim();
+  const useResend = Boolean(process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM?.trim());
   const user = process.env.EMAIL_USER?.trim();
   const pass = process.env.EMAIL_PASS?.trim();
+  const useSmtp = Boolean(user && pass);
 
-  if (!user || !pass) {
+  if (!useResend && !useSmtp) {
     console.warn(
-      `[OTP] EMAIL_USER/EMAIL_PASS not set — cannot email ${email} (${purpose}). Set Gmail credentials on the server for production.`
+      `[OTP] No email provider — set RESEND_API_KEY + RESEND_FROM (recommended on Railway) or EMAIL_USER + EMAIL_PASS for ${to} (${purpose}).`
     );
     return false;
+  }
+
+  if (useResend) {
+    const ok = await sendOtpViaResend(to, subject, text);
+    if (ok) return true;
+    if (!useSmtp) return false;
+    console.warn('[OTP] Resend failed; falling back to SMTP.');
   }
 
   const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
@@ -150,7 +203,10 @@ const sendOTP = async (req, res) => {
     const purpose = userExists ? 'login' : 'registration';
     const emailNorm = email.trim().toLowerCase();
 
-    const mailConfigured = Boolean(process.env.EMAIL_USER?.trim() && process.env.EMAIL_PASS?.trim());
+    const mailConfigured = Boolean(
+      (process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM?.trim()) ||
+        (process.env.EMAIL_USER?.trim() && process.env.EMAIL_PASS?.trim())
+    );
     if (
       process.env.NODE_ENV === 'production' &&
       !mailConfigured &&
@@ -158,7 +214,7 @@ const sendOTP = async (req, res) => {
     ) {
       return res.status(503).json({
         message:
-          'OTP email is not configured. Set EMAIL_USER and EMAIL_PASS on the server, or remove REQUIRE_SMTP_FOR_OTP.',
+          'OTP email is not configured. Set RESEND_API_KEY + RESEND_FROM, or EMAIL_USER + EMAIL_PASS, or remove REQUIRE_SMTP_FOR_OTP.',
       });
     }
 
@@ -185,8 +241,8 @@ const sendOTP = async (req, res) => {
       await OTP.deleteMany({ email: emailNorm });
       return res.status(503).json({
         message: mailConfigured
-          ? 'We could not deliver the verification email. Check EMAIL_USER / EMAIL_PASS on the server and try again, or check spam.'
-          : 'Email is not configured on the server. Set EMAIL_USER and EMAIL_PASS so codes are sent to the address you entered.',
+          ? 'We could not deliver the verification email. If you use Resend, check RESEND_API_KEY and RESEND_FROM; if you use Gmail, check EMAIL_USER / EMAIL_PASS. See server logs for [OTP].'
+          : 'Email is not configured. Set RESEND_API_KEY + RESEND_FROM (recommended) or EMAIL_USER + EMAIL_PASS on the server.',
       });
     }
 
