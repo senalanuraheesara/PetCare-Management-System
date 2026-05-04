@@ -17,6 +17,9 @@ module.exports = {
     ],
     extra: {
       apiUrl,
+      eas: {
+        projectId: "94540bee-8295-410c-a4e2-6de3c331f1e0"
+      }
     },
     orientation: "portrait",
     icon: "./assets/1.png",
