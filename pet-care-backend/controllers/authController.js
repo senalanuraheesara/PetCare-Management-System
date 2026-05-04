@@ -106,12 +106,11 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
   const useSmtp = Boolean(user && pass);
 
   if (!useResend && !useSmtp) {
-    console.warn(
-      `[OTP] No email provider — set RESEND_API_KEY + RESEND_FROM (recommended on Railway) or EMAIL_USER + EMAIL_PASS for ${to} (${purpose}).`
-    );
+    console.warn(`[OTP] No email provider configured for ${to}`);
     return false;
   }
 
+  // 1. Try Resend (HTTPS) - Best for cloud hosts like Railway
   if (useResend) {
     const ok = await sendOtpViaResend(to, subject, text);
     if (ok) return true;
@@ -119,36 +118,39 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     console.warn('[OTP] Resend failed; falling back to SMTP.');
   }
 
-  const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  // 2. Try SMTP
+  const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim().toLowerCase();
+  const isGmail = smtpHost.includes('gmail.com') || user.toLowerCase().endsWith('@gmail.com');
+
+  // Try the simplest Gmail config first if applicable
+  if (isGmail) {
+    const gmailTransporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+      connectionTimeout: 20000,
+    });
+
+    try {
+      await Promise.race([
+        gmailTransporter.sendMail({ from: user, to, subject, text }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Gmail SMTP timeout')), 25000))
+      ]);
+      gmailTransporter.close();
+      return true;
+    } catch (err) {
+      console.warn(`[OTP] Primary Gmail SMTP failed: ${err.message}. Trying manual ports...`);
+      gmailTransporter.close();
+    }
+  }
+
+  // Fallback to manual port/IP logic (useful for some cloud environments)
   const envPort = Number(process.env.SMTP_PORT);
   const tryPorts =
     Number.isFinite(envPort) && envPort > 0
-      ? envPort === 465
-        ? [465, 587]
-        : envPort === 587
-          ? [587, 465]
-          : [envPort]
+      ? [envPort]
       : [465, 587];
 
-  const mailOptions = {
-    from: user,
-    to: email,
-    subject,
-    text,
-  };
-
-  const sendWithTimeout = (transporter) =>
-    Promise.race([
-      transporter.sendMail(mailOptions),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`SMTP send timed out after ${SMTP_TIMEOUT_MS}ms`)), SMTP_TIMEOUT_MS);
-      }),
-    ]);
-
   const { host: connectHost, tlsServername } = await smtpIpv4ConnectTarget(smtpHost);
-  if (connectHost !== smtpHost) {
-    console.warn(`[OTP] SMTP using IPv4 ${connectHost} (SNI ${tlsServername}) for ${smtpHost}`);
-  }
 
   for (const smtpPort of tryPorts) {
     const secure = smtpPort === 465;
@@ -159,27 +161,23 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
       ...(smtpPort === 587 ? { requireTLS: true } : {}),
       auth: { user, pass },
       connectionTimeout: 20000,
-      greetingTimeout: 20000,
       socketTimeout: 20000,
-      ...(tlsServername
-        ? { tls: { servername: tlsServername, minVersion: 'TLSv1.2' } }
-        : { tls: { minVersion: 'TLSv1.2' } }),
+      tls: {
+        servername: tlsServername || smtpHost,
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: false // Often helps with IP-based connections
+      },
     });
 
     try {
-      await sendWithTimeout(transporter);
-      if (tryPorts.length > 1 && tryPorts[0] !== smtpPort) {
-        console.warn(`[OTP] SMTP succeeded on fallback port ${smtpPort} for ${email} (${purpose})`);
-      }
+      await Promise.race([
+        transporter.sendMail({ from: user, to, subject, text }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`SMTP port ${smtpPort} timeout`)), 25000))
+      ]);
       transporter.close();
       return true;
     } catch (err) {
-      const smtpMeta = [err?.code, err?.responseCode, err?.command].filter(Boolean).join(' ');
-      console.error(
-        `[OTP] SMTP failed (${connectHost}:${smtpPort} via ${smtpHost}) for ${email} (${purpose}):`,
-        err?.message || err,
-        smtpMeta || ''
-      );
+      console.error(`[OTP] SMTP port ${smtpPort} failed for ${to}:`, err.message);
       transporter.close();
     }
   }
