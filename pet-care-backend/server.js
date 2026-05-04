@@ -10,6 +10,9 @@ const authController = require('./controllers/authController');
 
 const app = express();
 
+// Railway / reverse proxies (correct client IP, secure cookies if you add them later)
+app.set('trust proxy', 1);
+
 const SERVER_BUILD_TAG = `pet-care-backend@${new Date().toISOString().slice(0, 10)}`; // sanity check from phone/browser
 
 const uploadsPath = path.join(__dirname, 'uploads');
@@ -19,8 +22,14 @@ if (!fs.existsSync(uploadsPath)) {
 
 app.use('/uploads', express.static(uploadsPath));
 
-// Middleware
-app.use(cors());
+// Middleware — allow Expo web, dev servers, and mobile (often no Origin header)
+app.use(
+  cors({
+    origin: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  })
+);
 app.use(express.json()); // Body parser
 
 // Hit this from the LAN to confirm THIS process is what's bound (no DB required).

@@ -1,6 +1,9 @@
 require('dotenv').config();
 
-const apiUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim();
+// Production API on Railway — override anytime with EXPO_PUBLIC_API_BASE_URL in .env
+const DEFAULT_API_BASE_URL = 'https://pet-production-4426.up.railway.app/api';
+const apiUrl =
+  (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim() || DEFAULT_API_BASE_URL;
 
 module.exports = {
   expo: {
@@ -13,7 +16,7 @@ module.exports = {
       "web"
     ],
     extra: {
-      apiUrl: apiUrl || undefined,
+      apiUrl,
     },
     orientation: "portrait",
     icon: "./assets/1.png",
