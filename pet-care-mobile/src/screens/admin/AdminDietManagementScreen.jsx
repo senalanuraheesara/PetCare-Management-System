@@ -140,19 +140,27 @@ export default function AdminDietManagementScreen({ navigation }) {
       return;
     }
 
+    const multipartHeader = {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+        'Content-Type': 'multipart/form-data',
+      }
+    };
+
     try {
       const formData = buildFormData();
       if (editingId) {
-        await api.put(`/diet/records/admin/${editingId}`, formData, authHeader);
+        await api.put(`/diet/records/admin/${editingId}`, formData, multipartHeader);
       } else {
-        await api.post(`/appointments/${selectedAppId}/diet`, formData, authHeader);
+        await api.post(`/appointments/${selectedAppId}/diet`, formData, multipartHeader);
       }
       setShowModal(false);
       resetFields();
       fetchRecords();
       Alert.alert('Success', 'Diet plan saved');
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Save failed');
+      console.error('Diet save error:', JSON.stringify(e.response?.data || e.message));
+      Alert.alert('Error', e.response?.data?.message || e.message || 'Save failed');
     }
   };
 

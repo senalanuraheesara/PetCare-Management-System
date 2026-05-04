@@ -64,13 +64,16 @@ export default function AdminAppointmentApprovalScreen({ navigation }) {
 
       try {
         await api.put(`/appointments/${id}/invoice`, formData, {
-          headers: { Authorization: `Bearer ${userToken}` }
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            'Content-Type': 'multipart/form-data',
+          },
         });
         Alert.alert('Success', 'Invoice uploaded successfully');
         fetchAppointments();
       } catch (error) {
         console.error('Upload Error:', JSON.stringify(error.response?.data || error.message));
-        Alert.alert('Error', error.response?.data?.message || `Upload failed (${error.response?.status})`);
+        Alert.alert('Error', error.response?.data?.message || error.message || `Upload failed`);
       }
     }
   };
