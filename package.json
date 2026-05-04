@@ -1,0 +1,12 @@
+{
+  "name": "pet-care-monorepo",
+  "private": true,
+  "description": "Railway/GitHub deploy: build context is repo root; API lives in pet-care-backend",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "postinstall": "npm install --prefix pet-care-backend --omit=dev --no-audit --no-fund",
+    "start": "node pet-care-backend/server.js"
+  }
+}
