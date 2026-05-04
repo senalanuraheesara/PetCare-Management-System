@@ -1,8 +1,14 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const dns = require('dns');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
+
+/** Nodemailer 8 may still resolve Gmail to IPv6; Railway often has no IPv6 egress → ENETUNREACH. */
+const smtpLookupIpv4 = (hostname, options, callback) => {
+  dns.lookup(hostname, { family: 4, all: false }, callback);
+};
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -48,13 +54,16 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     return false;
   }
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-    connectionTimeout: 12000,
-    greetingTimeout: 12000,
-    socketTimeout: 12000,
-  });
+  const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const envPort = Number(process.env.SMTP_PORT);
+  const tryPorts =
+    Number.isFinite(envPort) && envPort > 0
+      ? envPort === 465
+        ? [465, 587]
+        : envPort === 587
+          ? [587, 465]
+          : [envPort]
+      : [465, 587];
 
   const mailOptions = {
     from: user,
@@ -63,18 +72,48 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     text,
   };
 
-  try {
-    await Promise.race([
+  const sendWithTimeout = (transporter) =>
+    Promise.race([
       transporter.sendMail(mailOptions),
       new Promise((_, reject) => {
         setTimeout(() => reject(new Error(`SMTP send timed out after ${SMTP_TIMEOUT_MS}ms`)), SMTP_TIMEOUT_MS);
       }),
     ]);
-    return true;
-  } catch (err) {
-    console.error(`[OTP] SMTP send failed for ${email} (${purpose}):`, err?.message || err);
-    return false;
+
+  let lastErr = null;
+  for (const smtpPort of tryPorts) {
+    const secure = smtpPort === 465;
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure,
+      ...(smtpPort === 587 ? { requireTLS: true } : {}),
+      auth: { user, pass },
+      connectionTimeout: 12000,
+      greetingTimeout: 12000,
+      socketTimeout: 12000,
+      lookup: smtpLookupIpv4,
+    });
+
+    try {
+      await sendWithTimeout(transporter);
+      if (tryPorts.length > 1 && tryPorts[0] !== smtpPort) {
+        console.warn(`[OTP] SMTP succeeded on fallback port ${smtpPort} for ${email} (${purpose})`);
+      }
+      return true;
+    } catch (err) {
+      lastErr = err;
+      const smtpMeta = [err?.code, err?.responseCode, err?.command].filter(Boolean).join(' ');
+      console.error(
+        `[OTP] SMTP failed (${smtpHost}:${smtpPort}) for ${email} (${purpose}):`,
+        err?.message || err,
+        smtpMeta || ''
+      );
+      transporter.close();
+    }
   }
+
+  return false;
 };
 
 // @desc    Send OTP via Email for registration or login
