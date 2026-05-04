@@ -13,7 +13,7 @@ A full-stack **pet care** application: an **Expo (React Native)** mobile client 
 
 ### Pet owners (`owner` role)
 
-- **Authentication**: email/password login, OTP-based registration; SMTP optional in development (OTP also returned in JSON only when **not** in production). In production, `EMAIL_USER` / `EMAIL_PASS` must be set or OTP endpoints return an error.
+- **Authentication**: email/password login, OTP-based registration. Without SMTP (`EMAIL_USER` / `EMAIL_PASS`), the API returns the OTP in JSON for testing; set **`REQUIRE_SMTP_FOR_OTP=true`** in production once SMTP is configured to block sends and hide OTP from responses.
 - **Home**: dashboard and pet list (`/pets`).
 - **Tabs**: Home, vet booking entry, profile.
 - **Modules** (via stack navigation): appointments, vaccinations, grooming, boarding, diet, medications, add pet.
@@ -58,12 +58,13 @@ For physical devices testing the app, the API must be reachable on your LAN or v
    | `MONGO_URI` | Yes | MongoDB connection string |
    | `JWT_SECRET` | Yes | Secret for signing JWTs |
    | `PORT` | No | Listening port (default **5000**) |
-   | `NODE_ENV` | No | Use `production` to hide stack traces and enforce OTP email |
+   | `NODE_ENV` | No | Use `production` to hide stack traces |
+   | `REQUIRE_SMTP_FOR_OTP` | No | When **`true`**, `send-otp` requires SMTP; omit or **`false`** to allow OTP-in-JSON fallback when email is not configured |
    | `ADMIN_EMAIL` | For first admin | With `ADMIN_PASSWORD`, seeds one admin account on startup if missing |
    | `ADMIN_PASSWORD` | For first admin | Same as above |
    | `ADMIN_SYNC_ON_START` | No | Set to **`1`** once to create/update the `ADMIN_EMAIL` user’s password and `admin` role on startup; set back to **`0`** after syncing so passwords are not reset every restart |
-   | `EMAIL_USER` | Production OTP | Gmail address for OTP mail |
-   | `EMAIL_PASS` | Production OTP | Gmail app password or compatible SMTP secret |
+   | `EMAIL_USER` | For real OTP email | Gmail address for OTP mail |
+   | `EMAIL_PASS` | For real OTP email | Gmail app password or compatible SMTP secret |
    | `ALLOW_INSECURE_GOOGLE_AUTH` | No | Must be **`true`** to allow legacy `POST /auth/google` (unverified payloads). Disabled by default |
    | `MONGO_SKIP_DOH_FALLBACK` | No | Set to **`1`** to skip HTTPS-DNS SRV fallback (only matters for `mongodb+srv://` URIs) |
    | `MONGO_USE_SYSTEM_DNS` | No | Set to **`1`** to skip forcing public DNS before the first SRV connect attempt |
@@ -161,7 +162,7 @@ See `pet-care-backend/server.js` for mounted routers and individual `routes/*.js
 - **401 / JWT**: Ensure `JWT_SECRET` matches between issuing tokens and verifying; Authorization header format `Bearer <token>`.
 - **Mobile cannot reach API**: Wrong `EXPO_PUBLIC_API_BASE_URL`; use emulator host mapping or LAN IP; keep `/api` suffix consistent with backend mounts.
 - **`Missing API configuration` on app launch**: Define `EXPO_PUBLIC_API_BASE_URL` in `pet-care-mobile/.env` and restart Expo.
-- **OTP not emailed**: In development only, without SMTP, OTP is logged to the console and returned in JSON (`otp`). In **`NODE_ENV=production`**, SMTP must be configured or OTP sends fail at the API.
+- **OTP not emailed**: Without SMTP, OTP is logged (when possible) and returned in JSON (`otp`) unless **`REQUIRE_SMTP_FOR_OTP=true`**. For real users, configure **`EMAIL_USER`** / **`EMAIL_PASS`** on the host, then set **`REQUIRE_SMTP_FOR_OTP=true`** so OTPs are only sent by email.
 
 ## Scripts summary
 

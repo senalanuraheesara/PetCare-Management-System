@@ -12,7 +12,7 @@ import {
   Alert
 } from 'react-native';
 import { AuthContext } from '../../context/AuthContext';
-import api from '../../services/api';
+import api, { formatApiError } from '../../services/api';
 import { Feather } from '@expo/vector-icons';
 
 export default function OtpScreen({ route, navigation }) {
@@ -47,8 +47,7 @@ export default function OtpScreen({ route, navigation }) {
         [{ text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Main' }] }) }]
       );
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Verification failed';
-      Alert.alert('Error', message);
+      Alert.alert('Error', formatApiError(error, 'Verification failed'));
     } finally {
       setIsLoading(false);
     }
@@ -57,12 +56,12 @@ export default function OtpScreen({ route, navigation }) {
   const handleResend = async () => {
     setIsLoading(true);
     try {
-      await api.post('/auth/send-otp', { email });
-      Alert.alert('OTP Sent', 'A new OTP has been sent to your email.');
+      const { data } = await api.post('/auth/send-otp', { email });
+      const extra = data?.otp ? ` Use code: ${data.otp}` : '';
+      Alert.alert('OTP Sent', `A new OTP has been sent.${data?.otp ? extra : ' Check your email.'}`);
       setTimeLeft(120); // Reset timer to 2 minutes
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Failed to resend OTP';
-      Alert.alert('Error', message);
+      Alert.alert('Error', formatApiError(error, 'Failed to resend OTP'));
     } finally {
       setIsLoading(false);
     }

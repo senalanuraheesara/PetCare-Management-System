@@ -11,7 +11,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import api from '../../services/api';
+import api, { formatApiError } from '../../services/api';
 import { Feather } from '@expo/vector-icons';
 
 export default function RegisterScreen({ navigation }) {
@@ -43,8 +43,7 @@ export default function RegisterScreen({ navigation }) {
       alert(`${otpMessage}\n\nPlease enter the code in the next screen.`);
       navigation.navigate('OtpVerification', { name, email, password });
     } catch (error) {
-      const message = error.response?.data?.message || error.message || 'Failed to send OTP';
-      alert(message);
+      alert(formatApiError(error, 'Failed to send OTP'));
     } finally {
       setIsLoading(false);
     }

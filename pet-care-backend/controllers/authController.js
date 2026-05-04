@@ -47,13 +47,11 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
     };
 
     await transporter.sendMail(mailOptions);
-  } else if (process.env.NODE_ENV !== 'production') {
-    console.log(`\n===========================================`);
-    console.log(`[DEVELOPMENT] OTP for ${email} is: ${otp}`);
-    console.log(`(Configure EMAIL_USER and EMAIL_PASS in .env to send real emails)`);
-    console.log(`===========================================\n`);
   } else {
-    throw new Error('Email transport is not configured');
+    // No SMTP: OTP is still returned in the JSON body from sendOTP (mobile needs it on Railway, etc.)
+    console.warn(
+      `[OTP] EMAIL_USER/EMAIL_PASS not set — OTP for ${email} (${purpose}): ${otp} (also sent in API response)`
+    );
   }
 };
 
@@ -74,9 +72,14 @@ const sendOTP = async (req, res) => {
     const emailNorm = email.trim().toLowerCase();
 
     const mailConfigured = Boolean(process.env.EMAIL_USER?.trim() && process.env.EMAIL_PASS?.trim());
-    if (process.env.NODE_ENV === 'production' && !mailConfigured) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !mailConfigured &&
+      process.env.REQUIRE_SMTP_FOR_OTP === 'true'
+    ) {
       return res.status(503).json({
-        message: 'OTP email is not configured on this server. Contact support.',
+        message:
+          'OTP email is not configured. Set EMAIL_USER and EMAIL_PASS on the server, or remove REQUIRE_SMTP_FOR_OTP.',
       });
     }
 
@@ -96,7 +99,7 @@ const sendOTP = async (req, res) => {
     await sendEmailOTP(email.trim(), otp, purpose);
 
     const responsePayload = { message: `OTP sent successfully for ${purpose}` };
-    if (!mailConfigured && process.env.NODE_ENV !== 'production') {
+    if (!mailConfigured) {
       responsePayload.otp = otp;
     }
 
