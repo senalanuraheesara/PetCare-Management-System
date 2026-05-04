@@ -91,6 +91,20 @@ export function getBackendOrigin() {
   return trimmed.endsWith('/api') ? trimmed.slice(0, -'/api'.length) : trimmed;
 }
 
+/**
+ * Resolves a media URL. If it's already an absolute URL (Cloudinary or Data URL), 
+ * it returns it as is. Otherwise, it prefixes it with the backend origin.
+ */
+export function resolveMediaUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const origin = getBackendOrigin();
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${origin}${path}`;
+}
+
 export const setAuthToken = (token) => {
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;

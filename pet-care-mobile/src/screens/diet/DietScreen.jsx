@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import api, { getBackendOrigin } from '../../services/api';
+import api, { getBackendOrigin, resolveMediaUrl } from '../../services/api';
 
 const MEAL_ICONS = {
   Morning: '☀️',
@@ -157,11 +157,7 @@ export default function DietScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.viewDocBtn}
                   onPress={() => {
-                    const u = String(r.dietChartUrl).trim();
-                    const href =
-                      u.startsWith('http://') || u.startsWith('https://')
-                        ? u
-                        : `${baseFileUrl}${u.startsWith('/') ? u : `/${u}`}`;
+                    const href = resolveMediaUrl(r.dietChartUrl);
                     Linking.openURL(href).catch(() => {});
                   }}
                 >
