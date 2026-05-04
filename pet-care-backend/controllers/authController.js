@@ -1,14 +1,26 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const dns = require('dns');
+const net = require('net');
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 
-/** Nodemailer 8 may still resolve Gmail to IPv6; Railway often has no IPv6 egress → ENETUNREACH. */
-const smtpLookupIpv4 = (hostname, options, callback) => {
-  dns.lookup(hostname, { family: 4, all: false }, callback);
-};
+/**
+ * Railway often has no IPv6 egress; Node may still pick Gmail's AAAA first → ENETUNREACH.
+ * Resolve IPv4 once, connect to that address, and set TLS SNI to the real hostname so the cert validates.
+ */
+async function smtpIpv4ConnectTarget(hostname) {
+  try {
+    const { address } = await dns.promises.lookup(hostname, { family: 4 });
+    if (address && net.isIPv4(address)) {
+      return { host: address, tlsServername: hostname };
+    }
+  } catch (e) {
+    console.warn(`[OTP] IPv4 lookup failed for ${hostname}:`, e.message);
+  }
+  return { host: hostname, tlsServername: undefined };
+}
 
 const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -80,19 +92,25 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
       }),
     ]);
 
-  let lastErr = null;
+  const { host: connectHost, tlsServername } = await smtpIpv4ConnectTarget(smtpHost);
+  if (connectHost !== smtpHost) {
+    console.warn(`[OTP] SMTP using IPv4 ${connectHost} (SNI ${tlsServername}) for ${smtpHost}`);
+  }
+
   for (const smtpPort of tryPorts) {
     const secure = smtpPort === 465;
     const transporter = nodemailer.createTransport({
-      host: smtpHost,
+      host: connectHost,
       port: smtpPort,
       secure,
       ...(smtpPort === 587 ? { requireTLS: true } : {}),
       auth: { user, pass },
-      connectionTimeout: 12000,
-      greetingTimeout: 12000,
-      socketTimeout: 12000,
-      lookup: smtpLookupIpv4,
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 20000,
+      ...(tlsServername
+        ? { tls: { servername: tlsServername, minVersion: 'TLSv1.2' } }
+        : { tls: { minVersion: 'TLSv1.2' } }),
     });
 
     try {
@@ -100,12 +118,12 @@ const sendEmailOTP = async (email, otp, purpose = 'registration') => {
       if (tryPorts.length > 1 && tryPorts[0] !== smtpPort) {
         console.warn(`[OTP] SMTP succeeded on fallback port ${smtpPort} for ${email} (${purpose})`);
       }
+      transporter.close();
       return true;
     } catch (err) {
-      lastErr = err;
       const smtpMeta = [err?.code, err?.responseCode, err?.command].filter(Boolean).join(' ');
       console.error(
-        `[OTP] SMTP failed (${smtpHost}:${smtpPort}) for ${email} (${purpose}):`,
+        `[OTP] SMTP failed (${connectHost}:${smtpPort} via ${smtpHost}) for ${email} (${purpose}):`,
         err?.message || err,
         smtpMeta || ''
       );
